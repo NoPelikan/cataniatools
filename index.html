@@ -1,0 +1,3401 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Catania Toolbox</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<style>
+/* ════════════════════════════════════════════
+   SHELL (global)
+   ════════════════════════════════════════════ */
+:root {
+  --shellH: 58px;
+  --sh-bg:      #0b0d12;
+  --sh-bg-2:    #12151c;
+  --sh-panel:   #171b24;
+  --sh-border:  #262c38;
+  --sh-border2: #323a49;
+  --sh-text:    #e6e9ef;
+  --sh-dim:     #9aa3b2;
+  --sh-mut:     #6b7384;
+  --sh-accent:  #ff6a2b;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+body {
+  background:
+    radial-gradient(1100px 600px at 85% -10%, rgba(255,106,43,0.10), transparent 60%),
+    radial-gradient(900px 500px at 10% 110%, rgba(78,163,255,0.07), transparent 55%),
+    var(--sh-bg);
+  color: var(--sh-text);
+  font-family: "Segoe UI", Inter, system-ui, -apple-system, Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.shell-topbar {
+  position: sticky; top: 0; z-index: 200;
+  height: var(--shellH);
+  display: flex; align-items: center; gap: 16px;
+  padding: 0 20px;
+  background: rgba(11,13,18,.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--sh-border);
+}
+.shell-logo {
+  width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--sh-accent), #c43e12);
+  display: grid; place-items: center;
+  font-weight: 800; font-size: 19px; color: #fff;
+  box-shadow: 0 0 20px rgba(255,106,43,.35);
+}
+.shell-title { font-size: 16px; font-weight: 800; letter-spacing: -.3px; white-space: nowrap; }
+.shell-title span { color: var(--sh-accent); }
+
+.shell-tabs { display: flex; gap: 6px; margin-left: 14px; flex-wrap: wrap; }
+.shell-tabs button {
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  padding: 7px 15px; border-radius: 8px; cursor: pointer;
+  background: transparent; border: 1px solid transparent;
+  color: var(--sh-dim); transition: .15s;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.shell-tabs button:hover { color: var(--sh-text); background: var(--sh-panel); }
+.shell-tabs button.active {
+  background: linear-gradient(135deg, var(--sh-accent), #d8501c);
+  color: #fff; border-color: transparent;
+  box-shadow: 0 4px 16px rgba(255,106,43,.3);
+}
+.shell-tabs button.active.green {
+  background: linear-gradient(135deg, #27e07a, #1c9d57);
+  color: #04140b;
+  box-shadow: 0 4px 16px rgba(39,224,122,.3);
+}
+
+.tool { display: none; }
+.tool.active { display: block; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--sh-border2); border-radius: 6px; border: 2px solid var(--sh-bg); }
+::-webkit-scrollbar-thumb:hover { background: #3a4258; }
+
+/* ════════════════════════════════════════════
+   TOOL 1 · META-EDITOR  (#tool-meta)
+   ════════════════════════════════════════════ */
+#tool-meta {
+  --bg:        #0b0d12;
+  --bg-2:      #11141c;
+  --bg-3:      #161a24;
+  --panel:     #131722;
+  --border:    #232838;
+  --border-2:  #2e3548;
+  --text:      #e7ebf3;
+  --text-dim:  #8b94a7;
+  --text-mute: #5d6577;
+  --accent:    #ff7a18;
+  --accent-2:  #ffb066;
+  --accent-glow: rgba(255,122,24,.35);
+  --green:     #3ddc84;
+  --red:       #ff5470;
+  --radius:    10px;
+  --shadow:    0 8px 30px rgba(0,0,0,.45);
+  color: var(--text);
+}
+
+#tool-meta .app {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "header header"
+    "sidebar main";
+  height: calc(100vh - var(--shellH));
+}
+
+#tool-meta .topbar {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 22px;
+  background: linear-gradient(180deg, rgba(255,255,255,.02), transparent);
+  border-bottom: 1px solid var(--border);
+}
+#tool-meta .brand h1 { font-size: 16px; font-weight: 700; letter-spacing: .2px; }
+#tool-meta .brand h1 span { color: var(--accent); }
+#tool-meta .brand p { font-size: 11px; color: var(--text-mute); letter-spacing: .4px; text-transform: uppercase; }
+#tool-meta .topbar-spacer { flex: 1; }
+#tool-meta .topbar-stats { display: flex; gap: 10px; }
+#tool-meta .stat-pill {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+#tool-meta .stat-pill b { color: var(--text); font-weight: 600; }
+
+#tool-meta .sidebar {
+  grid-area: sidebar;
+  border-right: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--bg-2), var(--bg));
+  overflow-y: auto;
+  padding: 18px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+#tool-meta .side-title {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--text-mute); margin-bottom: 8px; font-weight: 700;
+}
+#tool-meta .dropzone {
+  border: 1.5px dashed var(--border-2);
+  border-radius: var(--radius);
+  padding: 26px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: .18s;
+  background: var(--bg-3);
+  color: var(--text-dim);
+}
+#tool-meta .dropzone:hover, #tool-meta .dropzone.drag {
+  border-color: var(--accent);
+  background: rgba(255,122,24,.06);
+  color: var(--text);
+}
+#tool-meta .dropzone .ico { font-size: 28px; margin-bottom: 6px; }
+#tool-meta .dropzone b { color: var(--accent); }
+#tool-meta .dropzone small { display:block; margin-top: 6px; font-size: 11px; color: var(--text-mute); }
+
+#tool-meta label.field-label { font-size: 11px; color: var(--text-dim); display:block; margin-bottom: 5px; }
+#tool-meta select, #tool-meta .btn, #tool-meta input[type="text"] {
+  width: 100%;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: .15s;
+}
+#tool-meta select:focus { border-color: var(--accent); }
+#tool-meta select:disabled { opacity: .4; cursor: not-allowed; }
+
+#tool-meta .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#tool-meta .preset-btn {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: .15s;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-family: inherit;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+#tool-meta .preset-btn:hover {
+  border-color: var(--accent);
+  background: rgba(255,122,24,.07);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+#tool-meta .preset-btn:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+#tool-meta .preset-btn .pico { font-size: 18px; }
+
+#tool-meta .btn {
+  cursor: pointer; font-weight: 600; text-align: center;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+}
+#tool-meta .btn:hover { border-color: var(--border-2); }
+#tool-meta .btn.primary {
+  background: linear-gradient(135deg, var(--accent), #d85f00);
+  border: none; color: #fff;
+  box-shadow: 0 4px 18px var(--accent-glow);
+}
+#tool-meta .btn.primary:hover { filter: brightness(1.08); }
+#tool-meta .btn.primary:disabled, #tool-meta .btn:disabled { opacity:.4; cursor:not-allowed; filter:none; }
+#tool-meta .btn.ghost { background: transparent; }
+
+#tool-meta .editor {
+  grid-area: main;
+  overflow-y: auto;
+  padding: 22px 26px 60px;
+}
+#tool-meta .empty-state {
+  height: 100%;
+  display: grid; place-items: center;
+  text-align: center; color: var(--text-mute);
+}
+#tool-meta .empty-state .big { font-size: 56px; margin-bottom: 12px; opacity:.5; }
+#tool-meta .empty-state h2 { color: var(--text-dim); font-weight: 600; margin-bottom: 6px; }
+
+#tool-meta .editor-head { display:flex; align-items:center; gap: 14px; margin-bottom: 20px; }
+#tool-meta .editor-head .veh-name { font-size: 22px; font-weight: 700; }
+#tool-meta .editor-head .veh-name span { color: var(--accent); }
+#tool-meta .editor-head .veh-tag {
+  font-size: 11px; background: var(--bg-3); border:1px solid var(--border);
+  padding: 4px 9px; border-radius: 20px; color: var(--text-dim);
+}
+
+#tool-meta .cat {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+#tool-meta .cat-head {
+  display:flex; align-items:center; gap: 10px;
+  padding: 13px 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,.025), transparent);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+}
+#tool-meta .cat-head .cat-ico {
+  width: 28px; height: 28px; border-radius: 7px; display:grid; place-items:center;
+  font-size: 15px;
+  background: var(--bg-3); border: 1px solid var(--border);
+}
+#tool-meta .cat-head h3 { font-size: 14px; font-weight: 700; flex:1; }
+#tool-meta .cat-head .chev { color: var(--text-mute); transition: .2s; }
+#tool-meta .cat.collapsed .chev { transform: rotate(-90deg); }
+#tool-meta .cat.collapsed .cat-body { display:none; }
+#tool-meta .cat-body { padding: 6px 16px 14px; }
+
+#tool-meta .ctrl { padding: 12px 2px; border-bottom: 1px dashed var(--border); }
+#tool-meta .ctrl:last-child { border-bottom: none; }
+#tool-meta .ctrl-top { display:flex; align-items:center; gap:8px; margin-bottom: 9px; }
+#tool-meta .ctrl-name { font-size: 13px; font-weight: 600; }
+#tool-meta .ctrl-key { font-size: 10.5px; color: var(--text-mute); font-family: ui-monospace, "Cascadia Code", monospace; }
+
+#tool-meta .info {
+  position: relative; cursor: help;
+  width: 15px; height: 15px; border-radius: 50%;
+  background: var(--bg-3); border:1px solid var(--border-2);
+  color: var(--text-dim); font-size: 10px;
+  display:grid; place-items:center; font-style: italic; font-weight: 700;
+}
+#tool-meta .info:hover { border-color: var(--accent); color: var(--accent); }
+#tool-meta .info .tip {
+  position: absolute; left: 50%; bottom: 130%;
+  transform: translateX(-50%);
+  width: 240px;
+  background: #05070b; border:1px solid var(--border-2);
+  border-radius: 8px; padding: 9px 11px;
+  font-size: 12px; font-weight: 400; color: var(--text);
+  line-height: 1.4;
+  box-shadow: var(--shadow);
+  opacity: 0; pointer-events: none; transition: .15s;
+  z-index: 30;
+}
+#tool-meta .info:hover .tip { opacity: 1; transform: translateX(-50%) translateY(-3px); }
+
+#tool-meta .ctrl-spacer { flex: 1; }
+#tool-meta .num-input {
+  width: 92px; text-align: right;
+  background: var(--bg-3); border: 1px solid var(--border);
+  color: var(--text); border-radius: 7px; padding: 5px 8px;
+  font-size: 13px; font-family: ui-monospace, monospace; outline: none;
+}
+#tool-meta .num-input:focus { border-color: var(--accent); }
+#tool-meta .num-input.changed { border-color: var(--accent); color: var(--accent-2); }
+
+#tool-meta .slider-row { display:flex; align-items:center; gap: 12px; }
+#tool-meta .range-wrap { flex:1; position: relative; }
+
+#tool-meta input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 6px; border-radius: 6px;
+  background: var(--bg-3);
+  outline: none; cursor: pointer;
+}
+#tool-meta input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 17px; height: 17px; border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #1a1d27;
+  box-shadow: 0 0 0 3px rgba(255,122,24,.18), 0 2px 6px rgba(0,0,0,.5);
+  transition: .1s;
+}
+#tool-meta input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+#tool-meta input[type="range"]::-moz-range-thumb {
+  width: 17px; height: 17px; border-radius: 50%;
+  background: var(--accent); border: 2px solid #1a1d27;
+  box-shadow: 0 0 0 3px rgba(255,122,24,.18);
+}
+#tool-meta .range-minmax { display:flex; justify-content: space-between; font-size: 10px; color: var(--text-mute); margin-top:3px; }
+
+#tool-meta .preview-toggle {
+  display:flex; align-items:center; gap:8px;
+  cursor:pointer; user-select:none;
+  font-size: 12px; color: var(--text-dim);
+  margin-bottom: 8px;
+}
+#tool-meta .xml-preview {
+  background: #05070b;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  font-family: ui-monospace, "Cascadia Code", "Courier New", monospace;
+  font-size: 12px; line-height: 1.5;
+  white-space: pre; overflow: auto;
+  max-height: 380px;
+  color: #c7d0e0;
+}
+#tool-meta .xml-preview .tag { color: #6ea8ff; }
+#tool-meta .xml-preview .attr { color: var(--accent-2); }
+#tool-meta .xml-preview .val { color: var(--green); }
+#tool-meta .xml-preview .txt { color: var(--text); }
+#tool-meta .xml-preview .hl { background: rgba(255,122,24,.16); border-radius:3px; }
+
+#tool-meta .toast {
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--bg-3); border:1px solid var(--border-2);
+  padding: 11px 20px; border-radius: 10px;
+  box-shadow: var(--shadow);
+  font-size: 13px; opacity: 0; pointer-events: none;
+  transition: .25s; z-index: 300;
+  display:flex; align-items:center; gap: 9px;
+  color: var(--text);
+}
+#tool-meta .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#tool-meta .toast.ok { border-color: var(--green); }
+#tool-meta .toast.err { border-color: var(--red); }
+
+#tool-meta .hr { height:1px; background: var(--border); border:none; }
+
+#tool-meta .badge-changed {
+  font-size: 10px; background: var(--accent); color:#fff;
+  padding: 1px 6px; border-radius: 10px; font-weight: 700;
+}
+/* ════════════════════════════════════════════
+   TOOL 2 · PACK-BUILDER  (#tool-pack)
+   ════════════════════════════════════════════ */
+#tool-pack {
+  color: #e0e0e8;
+  display: none;
+}
+#tool-pack.active { display: flex; flex-direction: column; align-items: center; min-height: calc(100vh - var(--shellH)); }
+
+#tool-pack .pk-head {
+  width: 100%;
+  padding: 1.5rem 2rem 1rem;
+  text-align: center;
+  background: linear-gradient(180deg, #12121a 0%, transparent 100%);
+  border-bottom: 1px solid #1a1a2e;
+}
+#tool-pack .pk-head p { color: #888; font-size: 0.9rem; }
+
+#tool-pack .mode-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+  justify-content: center;
+}
+#tool-pack .mode-tab {
+  padding: 0.5rem 1.5rem;
+  border-radius: 6px;
+  border: 1px solid #2a2a3e;
+  background: #12121a;
+  color: #e0e0e8;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+#tool-pack .mode-tab.active {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  border-color: #e74c3c;
+  color: #fff;
+}
+#tool-pack .mode-tab:not(.active):hover {
+  border-color: #e74c3c;
+  background: #1a1a2e;
+}
+
+#tool-pack .pk-main {
+  width: 100%;
+  max-width: 800px;
+  padding: 2rem;
+  flex: 1;
+}
+
+#tool-pack .merge-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: #12121a;
+  border: 1px solid #1a1a2e;
+  border-radius: 8px;
+}
+#tool-pack .merge-toggle label { font-size: 0.9rem; cursor: pointer; flex: 1; }
+#tool-pack .merge-toggle label small {
+  color: #666;
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+}
+#tool-pack .toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+#tool-pack .toggle-switch input { opacity: 0; width: 0; height: 0; }
+#tool-pack .toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: #2a2a3e;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+#tool-pack .toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 3px;
+  bottom: 3px;
+  background: #666;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+#tool-pack .toggle-switch input:checked + .toggle-slider { background: #e74c3c; }
+#tool-pack .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); background: #fff; }
+
+#tool-pack .dropzone-container { display: flex; flex-direction: column; gap: 1rem; }
+#tool-pack .dropzone {
+  border: 2px dashed #2a2a3e;
+  border-radius: 12px;
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: #0e0e16;
+  position: relative;
+}
+#tool-pack .dropzone.small { padding: 1.5rem 1.5rem; }
+#tool-pack .dropzone:hover, #tool-pack .dropzone.dragover {
+  border-color: #e74c3c;
+  background: #14141e;
+  box-shadow: 0 0 30px rgba(231, 76, 60, 0.08);
+}
+#tool-pack .dropzone.loaded { border-color: #2ecc71; border-style: solid; }
+#tool-pack .dropzone-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.6; }
+#tool-pack .dropzone.small .dropzone-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+#tool-pack .dropzone-text { font-size: 1rem; color: #888; }
+#tool-pack .dropzone.small .dropzone-text { font-size: 0.85rem; }
+#tool-pack .dropzone-text strong { color: #e74c3c; }
+#tool-pack .dropzone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+#tool-pack .dropzone-label {
+  font-size: 0.8rem;
+  color: #e74c3c;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+#tool-pack .hidden { display: none !important; }
+
+#tool-pack .status { margin-top: 1.5rem; display: none; }
+#tool-pack .status.visible { display: block; }
+#tool-pack .progress-bar-container {
+  background: #1a1a2e;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 6px;
+  margin-bottom: 1rem;
+}
+#tool-pack .progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #e74c3c, #ff6b6b);
+  width: 0%;
+  transition: width 0.3s;
+  border-radius: 8px;
+}
+#tool-pack .resource-list { list-style: none; margin-top: 1rem; }
+#tool-pack .resource-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #12121a;
+  border: 1px solid #1a1a2e;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  transition: border-color 0.2s;
+}
+#tool-pack .resource-item:hover { border-color: #2a2a3e; }
+#tool-pack .resource-name { font-weight: 600; font-size: 0.95rem; }
+#tool-pack .resource-stats { display: flex; gap: 1rem; font-size: 0.8rem; color: #666; }
+#tool-pack .resource-stats span { display: flex; align-items: center; gap: 0.3rem; }
+#tool-pack .stat-badge {
+  background: #1a1a2e;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+#tool-pack .stat-badge.stream { color: #3498db; }
+#tool-pack .stat-badge.data { color: #2ecc71; }
+#tool-pack .stat-badge.extras { color: #f39c12; }
+#tool-pack .stat-badge.renamed { color: #9b59b6; }
+#tool-pack .stat-badge.conflicts { color: #e74c3c; }
+
+#tool-pack .warnings { margin-top: 1rem; }
+#tool-pack .warning-item {
+  background: #1a1a0e;
+  border: 1px solid #3d3d1a;
+  border-radius: 6px;
+  padding: 0.6rem 1rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+  color: #f39c12;
+}
+#tool-pack .info-item {
+  background: #0e1a1a;
+  border: 1px solid #1a3d3d;
+  border-radius: 6px;
+  padding: 0.6rem 1rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+  color: #2ecc71;
+}
+
+#tool-pack .download-btn {
+  margin-top: 1.5rem;
+  width: 100%;
+  padding: 1rem;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: none;
+}
+#tool-pack .download-btn.visible { display: block; }
+#tool-pack .download-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(231, 76, 60, 0.3);
+}
+#tool-pack .download-btn:active { transform: translateY(0); }
+
+#tool-pack .summary {
+  text-align: center;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #666;
+  display: none;
+}
+#tool-pack .summary.visible { display: block; }
+
+#tool-pack .pk-footer {
+  padding: 1.2rem;
+  text-align: center;
+  color: #333;
+  font-size: 0.8rem;
+  border-top: 1px solid #1a1a2e;
+  width: 100%;
+}
+
+/* ════════════════════════════════════════════
+   TOOL 3 · LOGO REPLACER  (#tool-logo)
+   ════════════════════════════════════════════ */
+#tool-logo {
+  --bg:#0c0f0d; --line:#23302a;
+  --txt:#e7f1ea; --muted:#8aa294; --green:#27e07a; --green-dim:#1c9d57;
+  --red:#ff5d6c; --amber:#ffcf5d;
+  color: var(--txt);
+  font-size: 15px;
+  padding: 28px;
+  background: radial-gradient(1200px 700px at 70% -10%, rgba(16,36,26,.8) 0%, transparent 55%);
+  min-height: calc(100vh - var(--shellH));
+}
+#tool-logo .wrap { max-width: 1100px; margin: 0 auto; }
+#tool-logo .lr-title {
+  margin: 0; font-size: 22px; font-weight: 800; letter-spacing: .3px;
+  color: var(--green); text-shadow: 0 0 18px rgba(39,224,122,.25);
+}
+#tool-logo .sub { color: var(--muted); margin: 2px 0 24px; font-size: 13.5px; }
+#tool-logo .sub code { color: var(--green); }
+#tool-logo .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media(max-width:760px){ #tool-logo .grid { grid-template-columns: 1fr; } }
+#tool-logo .card {
+  background-color: #0f1411; border: 1px solid var(--line);
+  border-radius: 14px; padding: 18px;
+}
+#tool-logo .card h2 {
+  margin: 0 0 12px; font-size: 14px; font-weight: 700; color: var(--txt);
+  text-transform: uppercase; letter-spacing: 1px;
+}
+#tool-logo .card h2 .n { color: var(--green); margin-right: 8px; }
+#tool-logo .drop {
+  border: 2px dashed var(--line); border-radius: 12px; padding: 26px 16px; text-align: center;
+  cursor: pointer; transition: .18s; background: #0c110e; color: var(--muted);
+}
+#tool-logo .drop:hover { border-color: var(--green-dim); color: var(--txt); }
+#tool-logo .drop.hot {
+  border-color: var(--green); background: #0f1a13; color: var(--txt);
+  box-shadow: inset 0 0 30px rgba(39,224,122,.08);
+}
+#tool-logo .drop b { color: var(--green); font-weight: 600; }
+#tool-logo .drop .big { font-size: 30px; display: block; margin-bottom: 6px; filter: grayscale(.2); }
+#tool-logo .filemeta { margin-top: 10px; font-size: 12.5px; color: var(--muted); word-break: break-all; }
+#tool-logo .filemeta.ok { color: var(--green); }
+#tool-logo .btn {
+  appearance: none; border: 0; border-radius: 10px; padding: 12px 18px; font-weight: 700;
+  cursor: pointer; font-size: 14.5px; transition: .15s; font-family: inherit;
+  background: linear-gradient(135deg, var(--green), var(--green-dim)); color: #04140b;
+  box-shadow: 0 6px 20px rgba(39,224,122,.25);
+}
+#tool-logo .btn:hover { filter: brightness(1.08); }
+#tool-logo .btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; filter: none; }
+#tool-logo .btn.ghost { background: #16201a; color: var(--txt); border: 1px solid var(--line); box-shadow: none; }
+#tool-logo .actions { display: flex; gap: 12px; align-items: center; margin-top: 20px; flex-wrap: wrap; }
+#tool-logo .texgrid { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 12px; margin-top: 6px; }
+#tool-logo .tex {
+  border: 2px solid var(--line); border-radius: 12px; padding: 10px; cursor: pointer;
+  background: #0c110e; transition: .15s; position: relative; overflow: hidden;
+}
+#tool-logo .tex:hover { border-color: var(--green-dim); }
+#tool-logo .tex.sel { border-color: var(--green); box-shadow: 0 0 0 2px rgba(39,224,122,.25), inset 0 0 24px rgba(39,224,122,.06); }
+#tool-logo .tex .thumbwrap {
+  width: 100%; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden;
+  background:
+    conic-gradient(#1a211d 25%, transparent 0 50%, #1a211d 0 75%, transparent 0)
+    0 0/22px 22px;
+  display: grid; place-items: center;
+}
+#tool-logo .tex canvas { max-width: 100%; max-height: 100%; image-rendering: pixelated; display: block; }
+#tool-logo .tex .nm { font-size: 12px; margin-top: 8px; font-weight: 600; word-break: break-all; }
+#tool-logo .tex .meta { font-size: 11px; color: var(--muted); }
+#tool-logo .tex .badge {
+  position: absolute; top: 8px; right: 8px; background: var(--green); color: #04140b;
+  font-size: 10px; font-weight: 800; border-radius: 6px; padding: 2px 6px; display: none;
+}
+#tool-logo .tex.sel .badge { display: block; }
+#tool-logo .log {
+  margin-top: 18px; background: #0a0e0c; border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px 16px; font: 12.5px/1.6 ui-monospace, Consolas, monospace; color: var(--muted);
+  max-height: 220px; overflow: auto; white-space: pre-wrap;
+}
+#tool-logo .log .ok { color: var(--green); }
+#tool-logo .log .err { color: var(--red); }
+#tool-logo .log .warn { color: var(--amber); }
+#tool-logo .hidden { display: none; }
+#tool-logo .lr-footer { margin-top: 26px; color: var(--muted); font-size: 12px; text-align: center; }
+
+/* ════════════════════════════════════════════
+   TOOL 4 · RESOURCE MERGER  (#tool-merge)
+   ════════════════════════════════════════════ */
+#tool-merge {
+  --bg:        #0c0e13;
+  --bg-2:      #12151c;
+  --panel:     #171b24;
+  --panel-2:   #1d222d;
+  --border:    #262c38;
+  --border-2:  #323a49;
+  --text:      #e6e9ef;
+  --text-dim:  #9aa3b2;
+  --text-mut:  #6b7384;
+  --accent:    #ff6a2b;
+  --accent-2:  #ff8d5c;
+  --blue:      #4ea3ff;
+  --green:     #3ecf8e;
+  --red:       #ff5470;
+  --yellow:    #ffc94d;
+  --radius:    12px;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", Consolas, monospace;
+  color: var(--text);
+  line-height: 1.55;
+}
+#tool-merge .wrap { max-width: 1080px; margin: 0 auto; padding: 30px 24px 80px; }
+#tool-merge .tagline { color: var(--text-mut); font-size: 13px; margin: 0 0 24px; max-width: 720px; }
+#tool-merge .tagline b { color: var(--text-dim); font-weight: 600; }
+
+#tool-merge .dropzone {
+  border: 2px dashed var(--border-2);
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--panel), var(--bg-2));
+  padding: 54px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s, transform .1s;
+  position: relative;
+}
+#tool-merge .dropzone:hover { border-color: var(--accent); }
+#tool-merge .dropzone.drag { border-color: var(--accent); background: linear-gradient(180deg, #20242f, var(--panel)); transform: scale(1.005); }
+#tool-merge .dropzone .ico { font-size: 44px; margin-bottom: 12px; filter: grayscale(.1); }
+#tool-merge .dropzone h3 { font-size: 18px; font-weight: 700; }
+#tool-merge .dropzone p { color: var(--text-mut); font-size: 13px; margin-top: 6px; }
+#tool-merge .dropzone .pick { color: var(--accent); text-decoration: underline; }
+#tool-merge input[type=file] { display: none; }
+
+#tool-merge .section { margin-top: 28px; }
+#tool-merge .section.hidden { display: none; }
+#tool-merge .section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+#tool-merge .section-head h2 { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
+#tool-merge .section-head .count {
+  font-size: 12px; font-family: var(--mono); color: var(--text-dim);
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 10px;
+}
+#tool-merge .panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
+
+#tool-merge .res-grid { display: flex; flex-direction: column; gap: 10px; }
+#tool-merge .res-card {
+  display: flex; align-items: flex-start; gap: 14px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px; transition: border-color .15s, background .15s;
+}
+#tool-merge .res-card:hover { border-color: var(--border-2); }
+#tool-merge .res-card.off { opacity: .45; }
+#tool-merge .res-card .chk { margin-top: 3px; }
+#tool-merge .res-card .body { flex: 1; min-width: 0; }
+#tool-merge .res-card .rname { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#tool-merge .res-card .path { font-family: var(--mono); font-size: 11px; color: var(--text-mut); margin-top: 2px; word-break: break-all; }
+#tool-merge .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; }
+#tool-merge .pill {
+  font-family: var(--mono); font-size: 11px; padding: 2px 9px; border-radius: 20px;
+  border: 1px solid var(--border-2); color: var(--text-dim); background: var(--bg-2);
+}
+#tool-merge .pill.c { color: var(--blue); border-color: rgba(78,163,255,.35); }
+#tool-merge .pill.s { color: var(--green); border-color: rgba(62,207,142,.35); }
+#tool-merge .pill.sh { color: var(--yellow); border-color: rgba(255,201,77,.35); }
+#tool-merge .pill.f { color: var(--text-dim); }
+#tool-merge .badge {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+  padding: 2px 7px; border-radius: 5px;
+}
+#tool-merge .badge.legacy { background: rgba(255,201,77,.15); color: var(--yellow); }
+
+#tool-merge input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+
+#tool-merge .warn-list { display: flex; flex-direction: column; gap: 8px; }
+#tool-merge .warn {
+  display: flex; gap: 11px; align-items: flex-start;
+  padding: 12px 14px; border-radius: 10px; font-size: 13.5px; border: 1px solid;
+}
+#tool-merge .warn .wi { flex-shrink: 0; font-size: 16px; line-height: 1.4; }
+#tool-merge .warn.err   { background: rgba(255,84,112,.08); border-color: rgba(255,84,112,.3); }
+#tool-merge .warn.warn2 { background: rgba(255,201,77,.07); border-color: rgba(255,201,77,.28); }
+#tool-merge .warn.info  { background: rgba(78,163,255,.07); border-color: rgba(78,163,255,.26); }
+#tool-merge .warn b { color: var(--text); }
+#tool-merge .warn code { font-family: var(--mono); font-size: 12px; background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 4px; color: var(--accent-2); }
+
+#tool-merge .opts { padding: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px 22px; }
+#tool-merge .field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .4px; }
+#tool-merge .field input[type=text] {
+  width: 100%; background: var(--bg-2); border: 1px solid var(--border-2); color: var(--text);
+  border-radius: 8px; padding: 9px 12px; font-size: 14px; font-family: var(--mono);
+}
+#tool-merge .field input[type=text]:focus { outline: none; border-color: var(--accent); }
+#tool-merge .toggle-row { display: flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; padding-top: 4px; }
+#tool-merge .toggle-row span { font-size: 13.5px; color: var(--text-dim); }
+
+#tool-merge .preview {
+  background: #0a0c10; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 0; overflow: hidden;
+}
+#tool-merge .preview-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg-2);
+  font-family: var(--mono); font-size: 12px; color: var(--text-dim);
+}
+#tool-merge .preview pre {
+  margin: 0; padding: 16px; font-family: var(--mono); font-size: 12.5px; line-height: 1.65;
+  color: #cfd6e2; overflow-x: auto; max-height: 460px;
+}
+#tool-merge .lk { color: var(--accent); }
+#tool-merge .ls { color: var(--green); }
+#tool-merge .lc { color: var(--text-mut); font-style: italic; }
+
+#tool-merge .actions { display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
+#tool-merge button.btn {
+  font-family: inherit; font-weight: 700; font-size: 14.5px; cursor: pointer;
+  border: none; border-radius: 10px; padding: 13px 24px; transition: transform .08s, filter .15s, background .15s;
+  display: inline-flex; align-items: center; gap: 9px;
+}
+#tool-merge button.btn:active { transform: translateY(1px); }
+#tool-merge button.btn:disabled { opacity: .4; cursor: not-allowed; }
+#tool-merge .btn.primary { background: linear-gradient(135deg, var(--accent), #d8501c); color: #fff; box-shadow: 0 6px 22px rgba(255,106,43,.32); }
+#tool-merge .btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+#tool-merge .btn.ghost { background: var(--panel-2); color: var(--text); border: 1px solid var(--border-2); }
+#tool-merge .btn.ghost:hover:not(:disabled) { border-color: var(--text-mut); }
+
+#tool-merge .copy-btn { background: transparent; border: 1px solid var(--border-2); color: var(--text-dim); font-family: var(--mono); font-size: 11px; padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+#tool-merge .copy-btn:hover { color: var(--text); border-color: var(--text-mut); }
+
+#tool-merge .empty { color: var(--text-mut); font-size: 13.5px; padding: 16px; text-align: center; }
+#tool-merge .rm-footer { margin-top: 60px; text-align: center; color: var(--text-mut); font-size: 12px; }
+#tool-merge .rm-footer code { font-family: var(--mono); color: var(--text-dim); }
+
+#tool-merge .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: rm-sp .6s linear infinite; }
+@keyframes rm-sp { to { transform: rotate(360deg); } }
+
+@media (max-width: 640px) { #tool-merge .opts { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<!-- ════════ SHELL HEADER ════════ -->
+<header class="shell-topbar">
+  <div class="shell-logo">C</div>
+  <div class="shell-title">Catania <span>Toolbox</span></div>
+  <nav class="shell-tabs" id="shellTabs">
+    <button data-tool="tool-meta" class="active">⚙️ Meta-Editor</button>
+    <button data-tool="tool-pack">📦 Pack-Builder</button>
+    <button data-tool="tool-logo" data-theme="green">🖼️ Logo Replacer</button>
+    <button data-tool="tool-merge">🔀 Resource Merger</button>
+  </nav>
+</header>
+
+<!-- ════════════════════════════════════════════
+     TOOL 1 · META-EDITOR
+     ════════════════════════════════════════════ -->
+<section id="tool-meta" class="tool active">
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <h1>Meta-<span>Editor</span></h1>
+      <p>FiveM handling.meta · Visual Editor</p>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-stats">
+      <div class="stat-pill">Fahrzeuge: <b id="statVehicles">0</b></div>
+      <div class="stat-pill">Änderungen: <b id="statChanges">0</b></div>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <div>
+      <div class="side-title">1 · Datei laden</div>
+      <div class="dropzone" id="dropzone">
+        <div class="ico">📂</div>
+        <div><b>handling.meta</b> hierher ziehen</div>
+        <small>oder klicken zum Auswählen</small>
+      </div>
+      <input type="file" id="fileInput" accept=".meta,.xml" hidden />
+    </div>
+
+    <div>
+      <div class="side-title">2 · Fahrzeug</div>
+      <label class="field-label" for="vehSelect">Aktives Fahrzeug</label>
+      <select id="vehSelect" disabled><option>— keine Datei geladen —</option></select>
+    </div>
+
+    <div>
+      <div class="side-title">3 · Presets anwenden</div>
+      <div class="preset-grid" id="presetGrid"><!-- filled by JS --></div>
+    </div>
+
+    <hr class="hr" />
+
+    <div style="display:flex; flex-direction:column; gap:9px;">
+      <button class="btn primary" id="exportBtn" disabled>⬇ handling.meta exportieren</button>
+      <button class="btn ghost" id="resetBtn" disabled>↺ Auf Original zurücksetzen</button>
+    </div>
+
+    <div class="topbar-spacer"></div>
+    <small style="color:var(--text-mute); font-size:11px; line-height:1.5;">
+      100% clientseitig — deine Datei verlässt nie deinen Browser.
+    </small>
+  </aside>
+
+  <div class="editor" id="main">
+    <div class="empty-state" id="emptyState">
+      <div>
+        <div class="big">🏎️</div>
+        <h2>Keine Datei geladen</h2>
+        <p>Lade links eine <b>handling.meta</b> hoch, um die Fahrzeugwerte visuell zu bearbeiten.</p>
+      </div>
+    </div>
+
+    <div id="editorContent" style="display:none;">
+      <div class="editor-head">
+        <div class="veh-name">Fahrzeug: <span id="curVeh">—</span></div>
+        <div class="veh-tag" id="curTag">CHandlingData</div>
+      </div>
+
+      <div id="categories"><!-- filled by JS --></div>
+
+      <div style="margin-top: 24px;">
+        <div class="preview-toggle" id="previewToggle">
+          <span class="chev">▾</span> <b>Live XML-Vorschau</b> <span style="color:var(--text-mute)">(aktuelles Fahrzeug)</span>
+        </div>
+        <div class="xml-preview" id="xmlPreview"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     TOOL 2 · PACK-BUILDER (Ressourcen-Komprimierung)
+     ════════════════════════════════════════════ -->
+<section id="tool-pack" class="tool">
+  <div class="pk-head">
+    <p id="subtitle">FiveM Car-Pack Builder</p>
+    <div class="mode-tabs">
+      <div class="mode-tab active" data-mode="vehicles">Fahrzeuge</div>
+      <div class="mode-tab" data-mode="clothing">Kleidung (EUP)</div>
+    </div>
+  </div>
+
+  <div class="pk-main">
+    <div class="merge-toggle">
+      <label for="mergeToggle">
+        Bestehendes Pack erweitern
+        <small>Lade ein vorhandenes Pack hoch und füge neue Ressourcen hinzu</small>
+      </label>
+      <div class="toggle-switch">
+        <input type="checkbox" id="mergeToggle">
+        <span class="toggle-slider"></span>
+      </div>
+    </div>
+
+    <div class="dropzone-container">
+      <div class="dropzone small hidden" id="existingDropzone">
+        <div class="dropzone-label">Bestehendes Pack</div>
+        <div class="dropzone-icon">📂</div>
+        <div class="dropzone-text">
+          Bestehendes Pack-ZIP hier <strong>reinziehen</strong>
+        </div>
+        <input type="file" id="existingFileInput" accept=".zip">
+      </div>
+
+      <div class="dropzone" id="pkDropzone">
+        <div class="dropzone-icon">📦</div>
+        <div class="dropzone-text" id="dropzoneText">
+          ZIP-Datei hier <strong>reinziehen</strong> oder <strong>klicken</strong>
+        </div>
+        <input type="file" id="pkFileInput" accept=".zip">
+      </div>
+    </div>
+
+    <div class="status" id="status">
+      <div class="progress-bar-container">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <ul class="resource-list" id="resourceList"></ul>
+      <div class="warnings" id="warnings"></div>
+    </div>
+
+    <button class="download-btn" id="pkDownloadBtn">Pack herunterladen (.zip)</button>
+    <div class="summary" id="summary"></div>
+  </div>
+
+  <div class="pk-footer">Catania Ressourcen-Komprimierung &mdash; 100% clientseitig</div>
+</section>
+<!-- ════════════════════════════════════════════
+     TOOL 3 · LOGO REPLACER
+     ════════════════════════════════════════════ -->
+<section id="tool-logo" class="tool">
+<div class="wrap">
+  <h2 class="lr-title">Logo Replacer</h2>
+  <div class="sub">FiveM / GTA&nbsp;V <code>.ytd</code> Textur-Dictionary &mdash; Logo ersetzen, lokal im Browser. Keine Datei verlässt deinen PC.</div>
+
+  <div class="grid">
+    <div class="card">
+      <h2><span class="n">1</span> .YTD Datei</h2>
+      <div id="dropYtd" class="drop">
+        <span class="big">📦</span>
+        <b>.ytd</b> hierher ziehen<br>oder klicken zum Auswählen
+      </div>
+      <div id="metaYtd" class="filemeta">Keine Datei geladen.</div>
+    </div>
+
+    <div class="card">
+      <h2><span class="n">2</span> Dein Logo (PNG)</h2>
+      <div id="dropPng" class="drop">
+        <span class="big">🖼️</span>
+        <b>PNG</b> hierher ziehen<br>oder klicken zum Auswählen
+      </div>
+      <div id="metaPng" class="filemeta">Kein Logo geladen.</div>
+    </div>
+  </div>
+
+  <div id="texCard" class="card hidden" style="margin-top:16px">
+    <h2><span class="n">3</span> Textur zum Ersetzen wählen</h2>
+    <div id="texgrid" class="texgrid"></div>
+  </div>
+
+  <div class="actions">
+    <button id="btnReplace" class="btn" disabled>Ersetzen &amp; Herunterladen</button>
+    <button id="btnReset" class="btn ghost">Zurücksetzen</button>
+    <span id="hint" class="filemeta"></span>
+  </div>
+
+  <div id="log" class="log">Bereit. Lade eine .ytd und ein PNG.</div>
+
+  <div class="lr-footer">
+    Läuft vollständig clientseitig &middot; In-Place-Ersetzung gleicher Größe &middot;
+    unterstützte Formate: DXT1 / DXT3 / DXT5 / A8R8G8B8
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     TOOL 4 · RESOURCE MERGER
+     ════════════════════════════════════════════ -->
+<section id="tool-merge" class="tool">
+<div class="wrap">
+
+  <p class="tagline">
+    Lade ein ZIP mit mehreren standalone Ressourcen hoch. Das Tool erkennt alle <b>fxmanifest.lua</b>,
+    führt client-, server- und shared-Scripts in <b>einer</b> kombinierten Manifest zusammen, warnt bei
+    Konflikten und gibt dir ein fertiges ZIP zurück. Weniger Ressourcen = bessere Server-Performance.
+  </p>
+
+  <!-- DROP ZONE -->
+  <div class="dropzone" id="rmDropzone">
+    <div class="ico">📦</div>
+    <h3>ZIP hier ablegen</h3>
+    <p>oder <span class="pick">Datei auswählen</span> — enthält mehrere Ressourcen-Ordner</p>
+    <input type="file" id="rmFileInput" accept=".zip" />
+  </div>
+
+  <!-- RESOURCES -->
+  <div class="section hidden" id="resSection">
+    <div class="section-head">
+      <h2>Erkannte Ressourcen</h2>
+      <span class="count" id="resCount">0</span>
+    </div>
+    <div class="res-grid" id="resGrid"></div>
+  </div>
+
+  <!-- WARNINGS -->
+  <div class="section hidden" id="warnSection">
+    <div class="section-head">
+      <h2>Konflikte &amp; Hinweise</h2>
+      <span class="count" id="warnCount">0</span>
+    </div>
+    <div class="warn-list" id="warnList"></div>
+  </div>
+
+  <!-- OPTIONS -->
+  <div class="section hidden" id="optSection">
+    <div class="section-head"><h2>Optionen</h2></div>
+    <div class="panel opts">
+      <div class="field">
+        <label for="outName">Name der kombinierten Ressource</label>
+        <input type="text" id="outName" value="catania_combined" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label for="outAuthor">Author</label>
+        <input type="text" id="outAuthor" value="Catania Resource Merger" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label>Lua 5.4</label>
+        <label class="toggle-row"><input type="checkbox" id="optLua54" checked /><span>lua54 aktivieren (empfohlen wenn eine Ressource es nutzt)</span></label>
+      </div>
+      <div class="field">
+        <label>Manifest</label>
+        <label class="toggle-row"><input type="checkbox" id="optKeepDeps" checked /><span>Externe Dependencies übernehmen</span></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- MANIFEST PREVIEW -->
+  <div class="section hidden" id="previewSection">
+    <div class="section-head"><h2>Generierte fxmanifest.lua</h2></div>
+    <div class="preview">
+      <div class="preview-head">
+        <span>📄 fxmanifest.lua</span>
+        <button class="copy-btn" id="copyBtn">Kopieren</button>
+      </div>
+      <pre id="manifestPre"></pre>
+    </div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="section hidden" id="actionSection">
+    <div class="actions">
+      <button class="btn primary" id="rmDownloadBtn">⬇ Kombinierte Ressource herunterladen</button>
+      <button class="btn ghost" id="rmResetBtn">Neu starten</button>
+    </div>
+  </div>
+
+  <div class="rm-footer">
+    100% clientseitig · keine Daten verlassen deinen Browser · <code>JSZip</code> · Catania Resource Merger
+  </div>
+</div>
+</section>
+
+<!-- ════════ SHELL SCRIPT (Tab-Navigation) ════════ -->
+<script>
+"use strict";
+(() => {
+  const tabs = document.querySelectorAll("#shellTabs button");
+  function activate(id) {
+    document.querySelectorAll(".tool").forEach(s => s.classList.toggle("active", s.id === id));
+    tabs.forEach(b => {
+      const on = b.dataset.tool === id;
+      b.classList.toggle("active", on);
+      b.classList.toggle("green", on && b.dataset.theme === "green");
+    });
+    try { localStorage.setItem("cataniaToolbox.tab", id); } catch (e) {}
+  }
+  tabs.forEach(b => b.addEventListener("click", () => activate(b.dataset.tool)));
+  let saved = null;
+  try { saved = localStorage.getItem("cataniaToolbox.tab"); } catch (e) {}
+  if (saved && document.getElementById(saved)) activate(saved);
+})();
+</script>
+<!-- ════════ TOOL 1 SCRIPT · META-EDITOR ════════ -->
+<script>
+"use strict";
+(() => {
+
+const ROOT = document.getElementById("tool-meta");
+
+/* =========================================================
+   FELD-DEFINITIONEN
+   ========================================================= */
+const CATEGORIES = [
+  {
+    id: "motor", title: "Motor", icon: "⚙️",
+    fields: [
+      { key:"fInitialDriveForce", label:"Antriebskraft", min:0, max:1.5, step:0.001,
+        tip:"Beschleunigung / Antriebskraft. Höher = schneller beschleunigen. Typisch 0.10–0.45. Über ~0.5 wird es unrealistisch schnell." },
+      { key:"fDriveInertia", label:"Motorträgheit", min:0, max:2, step:0.01,
+        tip:"Wie schnell der Motor hochdreht. 1.0 = direkt, niedriger = träger (mehr Verzögerung beim Gasgeben)." },
+      { key:"fInitialDriveMaxFlatVel", label:"Höchstgeschwindigkeit", min:0, max:450, step:1,
+        tip:"Theoretische Maximalgeschwindigkeit (Drivetrain-Limit, grob in km/h). Tatsächliche Topspeed hängt auch vom Luftwiderstand ab." },
+      { key:"fClutchChangeRateScaleUpShift", label:"Schaltgeschw. Hochschalten", min:0, max:15, step:0.1,
+        tip:"Wie schnell beim Hochschalten der Gang wechselt. Höher = schnellere, sportlichere Gangwechsel." },
+      { key:"fClutchChangeRateScaleDownShift", label:"Schaltgeschw. Runterschalten", min:0, max:15, step:0.1,
+        tip:"Wie schnell beim Runterschalten gewechselt wird. Höher = schnellere Wechsel beim Bremsen/Verzögern." },
+      { key:"nInitialDriveGears", label:"Anzahl Gänge", min:1, max:10, step:1, int:true,
+        tip:"Anzahl der Getriebegänge. Supercars 6–8, LKW/Trucks 5–6, Muscle 3–4." },
+    ]
+  },
+  {
+    id: "bremsen", title: "Bremsen", icon: "🛑",
+    fields: [
+      { key:"fBrakeForce", label:"Bremskraft", min:0, max:2, step:0.01,
+        tip:"Gesamte Bremskraft. Höher = kürzerer Bremsweg. Typisch 0.5–1.2." },
+      { key:"fBrakeBiasFront", label:"Bremsbalance vorne", min:0, max:1, step:0.01,
+        tip:"Verteilung der Bremskraft. 0.5 = ausgewogen, >0.5 = mehr vorne (stabiler), <0.5 = mehr hinten (übersteuern beim Bremsen)." },
+      { key:"fHandBrakeForce", label:"Handbremskraft", min:0, max:15, step:0.1,
+        tip:"Kraft der Handbremse. Höher = blockiert die Hinterräder stärker (gut zum Driften)." },
+    ]
+  },
+  {
+    id: "traktion", title: "Traktion", icon: "🛞",
+    fields: [
+      { key:"fTractionCurveMax", label:"Max. Grip", min:0, max:5, step:0.01,
+        tip:"Maximale Haftung der Reifen. Höher = mehr Grip, klebt mehr an der Straße. Typisch 2.0–2.8." },
+      { key:"fTractionCurveMin", label:"Min. Grip (Slip)", min:0, max:5, step:0.01,
+        tip:"Haftung wenn die Reifen durchdrehen/rutschen. Niedriger als Max-Grip = ausbrechendes Heck. Kleiner Abstand = mehr Drift." },
+      { key:"fTractionCurveLateral", label:"Seitlicher Grip", min:0, max:40, step:0.1,
+        tip:"Seitliche Haftung in Kurven (Grad). Höher = mehr Kurvengrip, weniger seitliches Rutschen." },
+      { key:"fTractionBiasFront", label:"Traktionsbalance vorne", min:0.01, max:0.99, step:0.01,
+        tip:"Grip-Verteilung vorne/hinten. 0.5 = neutral, >0.5 = mehr Frontgrip (untersteuern), <0.5 = mehr Heckgrip (übersteuern)." },
+      { key:"fLowSpeedTractionLossMult", label:"Traktionsverlust niedrige Geschw.", min:0, max:3, step:0.01,
+        tip:"Wie stark die Räder beim Anfahren durchdrehen. Höher = mehr Burnout/Spin beim Beschleunigen aus dem Stand." },
+    ]
+  },
+  {
+    id: "federung", title: "Federung", icon: "🪛",
+    fields: [
+      { key:"fSuspensionForce", label:"Federungskraft", min:0, max:10, step:0.01,
+        tip:"Stärke der Federung. Höher = härter, hält das Fahrzeug stabiler bei Belastung." },
+      { key:"fSuspensionCompDamp", label:"Dämpfung Einfedern", min:0, max:10, step:0.01,
+        tip:"Dämpfung beim Einfedern (Kompression). Höher = straffer beim Eintauchen, weniger nachfedern." },
+      { key:"fSuspensionReboundDamp", label:"Dämpfung Ausfedern", min:0, max:10, step:0.01,
+        tip:"Dämpfung beim Ausfedern (Rebound). Höher = kontrollierteres Zurückfedern, weniger Hüpfen." },
+      { key:"fSuspensionRaise", label:"Fahrzeughöhe", min:-0.5, max:0.5, step:0.001,
+        tip:"Höhe des Fahrwerks. Negativ = tiefergelegt, positiv = höhergelegt (Offroad)." },
+      { key:"fSuspensionBiasFront", label:"Federungsbalance vorne", min:0.01, max:0.99, step:0.01,
+        tip:"Verteilung der Federungssteifigkeit vorne/hinten." },
+      { key:"fAntiRollBarForce", label:"Stabilisator", min:0, max:5, step:0.01,
+        tip:"Anti-Roll-Bar / Stabilisator gegen Wanken in Kurven. Höher = weniger Seitenneigung." },
+    ]
+  },
+  {
+    id: "allgemein", title: "Allgemein & Aero", icon: "📐",
+    fields: [
+      { key:"fMass", label:"Gewicht (kg)", min:0, max:12000, step:10,
+        tip:"Fahrzeugmasse in kg. Beeinflusst Trägheit, Aufprallverhalten und gefühlte Beschleunigung. Sportwagen ~1200–1600, LKW 4000+." },
+      { key:"fInitialDragCoeff", label:"Luftwiderstand", min:0, max:30, step:0.1,
+        tip:"Luftwiderstandsbeiwert. Höher = stärkere Abbremsung bei hoher Geschwindigkeit → niedrigere echte Topspeed." },
+      { key:"fSteeringLock", label:"Lenkeinschlag (°)", min:0, max:90, step:0.5,
+        tip:"Maximaler Lenkwinkel in Grad. Höher = wendiger / engerer Wendekreis, kann aber nervös wirken." },
+    ]
+  },
+];
+
+// flache Map key -> fieldDef
+const FIELD_MAP = {};
+CATEGORIES.forEach(c => c.fields.forEach(f => { FIELD_MAP[f.key] = f; }));
+
+/* =========================================================
+   PRESETS  (absolute Zielwerte; nur existierende Felder werden gesetzt)
+   ========================================================= */
+const PRESETS = {
+  supercar: {
+    label:"Supercar", icon:"🏎️",
+    values:{ fInitialDriveForce:0.36, fDriveInertia:0.40, fInitialDriveMaxFlatVel:210,
+      nInitialDriveGears:7, fClutchChangeRateScaleUpShift:3.5, fClutchChangeRateScaleDownShift:3.5,
+      fBrakeForce:1.05, fBrakeBiasFront:0.52, fHandBrakeForce:6,
+      fTractionCurveMax:2.65, fTractionCurveMin:2.35, fTractionCurveLateral:22.5,
+      fTractionBiasFront:0.485, fLowSpeedTractionLossMult:0.9,
+      fSuspensionForce:2.6, fSuspensionRaise:-0.03, fAntiRollBarForce:1.2,
+      fMass:1500, fInitialDragCoeff:5.8, fSteeringLock:42 }
+  },
+  sports: {
+    label:"Sports", icon:"🚗",
+    values:{ fInitialDriveForce:0.30, fDriveInertia:0.35, fInitialDriveMaxFlatVel:180,
+      nInitialDriveGears:6, fClutchChangeRateScaleUpShift:2.8, fClutchChangeRateScaleDownShift:2.8,
+      fBrakeForce:0.9, fBrakeBiasFront:0.5, fHandBrakeForce:5,
+      fTractionCurveMax:2.45, fTractionCurveMin:2.15, fTractionCurveLateral:21,
+      fTractionBiasFront:0.49, fLowSpeedTractionLossMult:1.0,
+      fSuspensionForce:2.3, fMass:1350, fInitialDragCoeff:7.0, fSteeringLock:40 }
+  },
+  muscle: {
+    label:"Muscle", icon:"💪",
+    values:{ fInitialDriveForce:0.28, fDriveInertia:0.30, fInitialDriveMaxFlatVel:165,
+      nInitialDriveGears:4, fClutchChangeRateScaleUpShift:2.2, fClutchChangeRateScaleDownShift:2.2,
+      fBrakeForce:0.75, fBrakeBiasFront:0.55,
+      fTractionCurveMax:2.2, fTractionCurveMin:1.7, fTractionCurveLateral:18,
+      fTractionBiasFront:0.5, fLowSpeedTractionLossMult:1.4,
+      fSuspensionForce:2.0, fMass:1900, fInitialDragCoeff:9.0, fSteeringLock:38 }
+  },
+  offroad: {
+    label:"Offroad", icon:"⛰️",
+    values:{ fInitialDriveForce:0.25, fDriveInertia:0.30, fInitialDriveMaxFlatVel:150,
+      nInitialDriveGears:6, fBrakeForce:0.7, fBrakeBiasFront:0.5, fHandBrakeForce:7,
+      fTractionCurveMax:2.25, fTractionCurveMin:2.0, fTractionCurveLateral:19,
+      fTractionBiasFront:0.5, fLowSpeedTractionLossMult:0.6,
+      fSuspensionForce:3.2, fSuspensionRaise:0.12, fSuspensionCompDamp:1.6,
+      fSuspensionReboundDamp:1.9, fAntiRollBarForce:0.6,
+      fMass:2300, fInitialDragCoeff:11, fSteeringLock:44 }
+  },
+  truck: {
+    label:"Truck / LKW", icon:"🚚",
+    values:{ fInitialDriveForce:0.18, fDriveInertia:0.20, fInitialDriveMaxFlatVel:130,
+      nInitialDriveGears:6, fClutchChangeRateScaleUpShift:1.5, fClutchChangeRateScaleDownShift:1.5,
+      fBrakeForce:0.55, fBrakeBiasFront:0.45, fHandBrakeForce:4,
+      fTractionCurveMax:1.85, fTractionCurveMin:1.6, fTractionCurveLateral:16,
+      fTractionBiasFront:0.5, fLowSpeedTractionLossMult:0.5,
+      fSuspensionForce:2.4, fAntiRollBarForce:1.0,
+      fMass:6000, fInitialDragCoeff:13, fSteeringLock:32 }
+  },
+  drift: {
+    label:"Drift", icon:"💨",
+    values:{ fInitialDriveForce:0.32, fDriveInertia:0.35, fInitialDriveMaxFlatVel:175,
+      nInitialDriveGears:6, fBrakeForce:0.95, fBrakeBiasFront:0.6, fHandBrakeForce:9,
+      fTractionCurveMax:2.0, fTractionCurveMin:0.9, fTractionCurveLateral:14,
+      fTractionBiasFront:0.52, fLowSpeedTractionLossMult:1.6,
+      fSuspensionForce:2.5, fAntiRollBarForce:1.4,
+      fMass:1400, fInitialDragCoeff:7.5, fSteeringLock:48 }
+  },
+  // RELATIVES Preset: multipliziert die AKTUELLEN Werte (nicht absolut setzen).
+  // Macht ein PD-Fahrzeug ~10% schneller als seine zivile Basis.
+  police: {
+    label:"PD +10%", icon:"🚓", type:"multiply",
+    factors:{
+      fInitialDriveForce:1.12,        // Beschleunigung
+      fInitialDriveMaxFlatVel:1.09,   // Topspeed-Limit
+      fInitialDragCoeff:0.88,         // weniger Luftwiderstand = höhere Endgeschw.
+      fTractionCurveMax:1.07,         // mehr Grip
+      fDriveInertia:1.05,             // dreht schneller hoch
+      fBrakeForce:1.10                // sicher bremsen bei mehr Speed
+    }
+  },
+};
+
+/* =========================================================
+   STATE
+   ========================================================= */
+let xmlDoc = null;          // geparstes DOM (vollständig, wird beim Export serialisiert)
+let vehicles = [];          // [{name, el}]
+let currentVeh = null;      // aktives {name, el}
+let originalValues = {};    // { vehName: { key: stringValue } }  zum Reset & Änderungs-Erkennung
+let fileName = "handling.meta";
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+const $ = sel => ROOT.querySelector(sel);
+
+function getDirectChild(parent, tag) {
+  for (const c of parent.children) {
+    if (c.tagName === tag) return c;
+  }
+  return null;
+}
+
+function fmtNum(field, num) {
+  if (field.int) return String(Math.round(num));
+  return Number(num).toFixed(6);
+}
+
+function toast(msg, type="") {
+  const t = $("#toast");
+  t.textContent = "";
+  const ico = type === "ok" ? "✓ " : type === "err" ? "✕ " : "";
+  t.textContent = ico + msg;
+  t.className = "toast show " + type;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.className = "toast " + type, 2600);
+}
+
+/* =========================================================
+   PARSING
+   ========================================================= */
+function parseHandlingFile(text) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, "application/xml");
+  const err = doc.querySelector("parsererror");
+  if (err) throw new Error("XML konnte nicht geparst werden. Ist es eine gültige handling.meta?");
+
+  // Alle CHandlingData-Items finden (Item mit handlingName-Kind)
+  const items = Array.from(doc.getElementsByTagName("Item")).filter(it => {
+    const hn = getDirectChild(it, "handlingName");
+    return hn !== null;
+  });
+
+  if (items.length === 0) throw new Error("Keine Fahrzeuge (handlingName) in der Datei gefunden.");
+
+  const list = items.map(it => {
+    const hn = getDirectChild(it, "handlingName");
+    return { name: (hn.textContent || "UNNAMED").trim(), el: it };
+  });
+
+  return { doc, list };
+}
+
+function snapshotOriginal() {
+  originalValues = {};
+  vehicles.forEach(v => {
+    const snap = {};
+    Object.keys(FIELD_MAP).forEach(key => {
+      const el = getDirectChild(v.el, key);
+      if (el) snap[key] = el.getAttribute("value");
+    });
+    originalValues[v.name] = snap;
+  });
+}
+
+/* =========================================================
+   VALUE ACCESS
+   ========================================================= */
+function readValue(vehEl, key) {
+  const el = getDirectChild(vehEl, key);
+  if (!el) return null;
+  const raw = el.getAttribute("value");
+  return raw === null ? null : parseFloat(raw);
+}
+
+function writeValue(vehEl, key, num) {
+  const el = getDirectChild(vehEl, key);
+  if (!el) return false;
+  const field = FIELD_MAP[key];
+  el.setAttribute("value", fmtNum(field, num));
+  return true;
+}
+
+function isChanged(vehName, key) {
+  const orig = originalValues[vehName]?.[key];
+  if (orig === undefined) return false;
+  const el = getDirectChild(currentVeh.el, key);
+  if (!el) return false;
+  return el.getAttribute("value") !== orig;
+}
+
+function countAllChanges() {
+  let n = 0;
+  vehicles.forEach(v => {
+    const snap = originalValues[v.name] || {};
+    Object.keys(snap).forEach(key => {
+      const el = getDirectChild(v.el, key);
+      if (el && el.getAttribute("value") !== snap[key]) n++;
+    });
+  });
+  return n;
+}
+/* =========================================================
+   UI BUILD
+   ========================================================= */
+function buildVehicleSelect() {
+  const sel = $("#vehSelect");
+  sel.innerHTML = "";
+  vehicles.forEach((v, i) => {
+    const o = document.createElement("option");
+    o.value = i; o.textContent = v.name;
+    sel.appendChild(o);
+  });
+  sel.disabled = false;
+}
+
+function buildPresets() {
+  const grid = $("#presetGrid");
+  grid.innerHTML = "";
+  Object.entries(PRESETS).forEach(([id, p]) => {
+    const b = document.createElement("button");
+    b.className = "preset-btn";
+    b.disabled = true;
+    b.dataset.preset = id;
+    b.innerHTML = `<span class="pico">${p.icon}</span>${p.label}`;
+    b.addEventListener("click", () => applyPreset(id));
+    grid.appendChild(b);
+  });
+}
+
+function buildCategories() {
+  const wrap = $("#categories");
+  wrap.innerHTML = "";
+
+  CATEGORIES.forEach(cat => {
+    // nur Felder zeigen, die im aktuellen Fahrzeug existieren
+    const present = cat.fields.filter(f => getDirectChild(currentVeh.el, f.key) !== null);
+    if (present.length === 0) return;
+
+    const section = document.createElement("div");
+    section.className = "cat";
+    section.innerHTML = `
+      <div class="cat-head">
+        <div class="cat-ico">${cat.icon}</div>
+        <h3>${cat.title}</h3>
+        <span class="chev">▾</span>
+      </div>
+      <div class="cat-body"></div>`;
+    const body = section.querySelector(".cat-body");
+    section.querySelector(".cat-head").addEventListener("click", () => {
+      section.classList.toggle("collapsed");
+    });
+
+    present.forEach(f => body.appendChild(buildControl(f)));
+    wrap.appendChild(section);
+  });
+}
+
+function buildControl(field) {
+  const val = readValue(currentVeh.el, field.key);
+  const row = document.createElement("div");
+  row.className = "ctrl";
+  row.dataset.key = field.key;
+
+  // clamp anzeige in slider range, aber number input darf darüber hinaus
+  const sliderMin = field.min, sliderMax = field.max;
+
+  row.innerHTML = `
+    <div class="ctrl-top">
+      <span class="ctrl-name">${field.label}</span>
+      <span class="info">i<span class="tip">${field.tip}</span></span>
+      <span class="ctrl-key">${field.key}</span>
+      <span class="ctrl-spacer"></span>
+      <input type="text" class="num-input" inputmode="decimal" />
+    </div>
+    <div class="slider-row">
+      <div class="range-wrap">
+        <input type="range" min="${sliderMin}" max="${sliderMax}" step="${field.step}" />
+        <div class="range-minmax"><span>${sliderMin}</span><span>${sliderMax}</span></div>
+      </div>
+    </div>`;
+
+  const range = row.querySelector("input[type=range]");
+  const num = row.querySelector(".num-input");
+
+  function syncDisplay(n) {
+    num.value = field.int ? String(Math.round(n)) : trimFloat(n);
+    // slider clamp
+    range.value = Math.min(sliderMax, Math.max(sliderMin, n));
+    num.classList.toggle("changed", isChanged(currentVeh.name, field.key));
+  }
+
+  syncDisplay(val);
+
+  range.addEventListener("input", () => {
+    let n = parseFloat(range.value);
+    writeValue(currentVeh.el, field.key, n);
+    syncDisplay(n);
+    onValueChanged();
+  });
+
+  num.addEventListener("change", () => {
+    let n = parseFloat(num.value.replace(",", "."));
+    if (isNaN(n)) { syncDisplay(readValue(currentVeh.el, field.key)); return; }
+    writeValue(currentVeh.el, field.key, n);
+    syncDisplay(n);
+    onValueChanged();
+  });
+
+  return row;
+}
+
+function trimFloat(n) {
+  // schöne Anzeige: bis zu 4 Nachkommastellen, ohne nutzlose Nullen
+  return parseFloat(Number(n).toFixed(4)).toString();
+}
+
+/* =========================================================
+   RENDER ACTIVE VEHICLE
+   ========================================================= */
+function selectVehicle(index) {
+  currentVeh = vehicles[index];
+  $("#curVeh").textContent = currentVeh.name;
+  const typeAttr = currentVeh.el.getAttribute("type") || "CHandlingData";
+  $("#curTag").textContent = typeAttr;
+  buildCategories();
+  updatePreview();
+}
+
+function refreshAllControls() {
+  // nach Preset: alle Slider neu setzen
+  ROOT.querySelectorAll(".ctrl").forEach(row => {
+    const key = row.dataset.key;
+    const val = readValue(currentVeh.el, key);
+    if (val === null) return;
+    const field = FIELD_MAP[key];
+    const range = row.querySelector("input[type=range]");
+    const num = row.querySelector(".num-input");
+    num.value = field.int ? String(Math.round(val)) : trimFloat(val);
+    range.value = Math.min(field.max, Math.max(field.min, val));
+    num.classList.toggle("changed", isChanged(currentVeh.name, key));
+  });
+}
+
+function onValueChanged() {
+  $("#statChanges").textContent = countAllChanges();
+  updatePreview();
+}
+
+/* =========================================================
+   PRESETS
+   ========================================================= */
+function applyPreset(id) {
+  if (!currentVeh) return;
+  const preset = PRESETS[id];
+  let applied = 0;
+
+  if (preset.type === "multiply") {
+    // relativ: aktuelle Werte mit Faktor multiplizieren
+    Object.entries(preset.factors).forEach(([key, factor]) => {
+      const cur = readValue(currentVeh.el, key);
+      if (cur === null) return;
+      writeValue(currentVeh.el, key, cur * factor);
+      applied++;
+    });
+    refreshAllControls();
+    onValueChanged();
+    toast(`"${preset.label}" angewendet — ${applied} Werte relativ angepasst (stapelt bei mehrfachem Klick!)`, "ok");
+    return;
+  }
+
+  // absolut: feste Zielwerte setzen
+  Object.entries(preset.values).forEach(([key, v]) => {
+    if (getDirectChild(currentVeh.el, key)) {
+      writeValue(currentVeh.el, key, v);
+      applied++;
+    }
+  });
+  refreshAllControls();
+  onValueChanged();
+  toast(`Preset "${preset.label}" angewendet (${applied} Werte)`, "ok");
+}
+
+/* =========================================================
+   RESET
+   ========================================================= */
+function resetCurrent() {
+  if (!currentVeh) return;
+  const snap = originalValues[currentVeh.name] || {};
+  Object.entries(snap).forEach(([key, raw]) => {
+    const el = getDirectChild(currentVeh.el, key);
+    if (el) el.setAttribute("value", raw);
+  });
+  refreshAllControls();
+  onValueChanged();
+  toast(`"${currentVeh.name}" auf Original zurückgesetzt`, "ok");
+}
+
+/* =========================================================
+   SERIALIZE / PRETTY PRINT
+   ========================================================= */
+function serializeNode(node, indent) {
+  // text
+  if (node.nodeType === 3) {
+    const t = node.nodeValue.trim();
+    return t ? indent + t : "";
+  }
+  // comment
+  if (node.nodeType === 8) return indent + "<!--" + node.nodeValue + "-->";
+  if (node.nodeType !== 1) return "";
+
+  const el = node;
+  let attrs = "";
+  for (const a of el.attributes) attrs += ` ${a.name}="${a.value}"`;
+
+  const kids = Array.from(el.childNodes).filter(n =>
+    n.nodeType === 1 || n.nodeType === 8 || (n.nodeType === 3 && n.nodeValue.trim()));
+
+  if (kids.length === 0) {
+    return `${indent}<${el.tagName}${attrs} />`;
+  }
+  // einzelnes Textkind -> inline
+  if (kids.length === 1 && kids[0].nodeType === 3) {
+    return `${indent}<${el.tagName}${attrs}>${kids[0].nodeValue.trim()}</${el.tagName}>`;
+  }
+  const inner = kids.map(k => serializeNode(k, indent + "  ")).filter(Boolean).join("\n");
+  return `${indent}<${el.tagName}${attrs}>\n${inner}\n${indent}</${el.tagName}>`;
+}
+
+function serializeDoc() {
+  const root = xmlDoc.documentElement;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n` + serializeNode(root, "");
+}
+
+function serializeVehicle() {
+  return serializeNode(currentVeh.el, "");
+}
+
+/* =========================================================
+   LIVE PREVIEW (nur aktives Fahrzeug, mit Highlight)
+   ========================================================= */
+function escapeHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function updatePreview() {
+  const raw = serializeVehicle();
+  let html = escapeHtml(raw);
+
+  // einfache Syntax-Hervorhebung
+  html = html
+    .replace(/(&lt;\/?)([\w]+)/g, '$1<span class="tag">$2</span>')
+    .replace(/([\w]+)=(&quot;|")([^"&]*)/g, (m, attr, q, val) =>
+      `<span class="attr">${attr}</span>=${q}<span class="val">${val}</span>`);
+
+  // geänderte Felder hervorheben
+  Object.keys(originalValues[currentVeh.name] || {}).forEach(key => {
+    if (isChanged(currentVeh.name, key)) {
+      const re = new RegExp(`(&lt;<span class="tag">${key}</span>[^\\n]*)`, "g");
+      html = html.replace(re, '<span class="hl">$1</span>');
+    }
+  });
+
+  $("#xmlPreview").innerHTML = html;
+}
+
+/* =========================================================
+   EXPORT
+   ========================================================= */
+function exportFile() {
+  if (!xmlDoc) return;
+  const out = serializeDoc();
+  const blob = new Blob([out], { type: "application/xml" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName.endsWith(".meta") ? fileName : "handling.meta";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast(`${fileName} exportiert (${countAllChanges()} Änderungen)`, "ok");
+}
+
+/* =========================================================
+   FILE LOAD
+   ========================================================= */
+function loadFile(file) {
+  fileName = file.name || "handling.meta";
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const { doc, list } = parseHandlingFile(e.target.result);
+      xmlDoc = doc;
+      vehicles = list;
+      snapshotOriginal();
+
+      buildVehicleSelect();
+      $("#statVehicles").textContent = vehicles.length;
+      $("#statChanges").textContent = 0;
+
+      // UI aktivieren
+      $("#emptyState").style.display = "none";
+      $("#editorContent").style.display = "block";
+      $("#exportBtn").disabled = false;
+      $("#resetBtn").disabled = false;
+      ROOT.querySelectorAll(".preset-btn").forEach(b => b.disabled = false);
+
+      selectVehicle(0);
+      $("#vehSelect").value = 0;
+
+      toast(`${vehicles.length} Fahrzeug(e) geladen`, "ok");
+    } catch (err) {
+      toast(err.message, "err");
+      console.error(err);
+    }
+  };
+  reader.onerror = () => toast("Datei konnte nicht gelesen werden.", "err");
+  reader.readAsText(file);
+}
+
+/* =========================================================
+   EVENT WIRING
+   ========================================================= */
+function init() {
+  buildPresets();
+
+  const dz = $("#dropzone");
+  const fi = $("#fileInput");
+
+  dz.addEventListener("click", () => fi.click());
+  fi.addEventListener("change", () => { if (fi.files[0]) loadFile(fi.files[0]); fi.value=""; });
+
+  ["dragenter","dragover"].forEach(ev =>
+    dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add("drag"); }));
+  ["dragleave","drop"].forEach(ev =>
+    dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove("drag"); }));
+  dz.addEventListener("drop", e => {
+    const f = e.dataTransfer.files[0];
+    if (f) loadFile(f);
+  });
+  // global drop verhindern (versehentliches Öffnen im Browser)
+  window.addEventListener("dragover", e => e.preventDefault());
+  window.addEventListener("drop", e => e.preventDefault());
+
+  $("#vehSelect").addEventListener("change", e => selectVehicle(parseInt(e.target.value)));
+  $("#exportBtn").addEventListener("click", exportFile);
+  $("#resetBtn").addEventListener("click", resetCurrent);
+
+  $("#previewToggle").addEventListener("click", () => {
+    const p = $("#xmlPreview");
+    const chev = $("#previewToggle .chev");
+    const hidden = p.style.display === "none";
+    p.style.display = hidden ? "block" : "none";
+    chev.style.transform = hidden ? "" : "rotate(-90deg)";
+  });
+}
+
+init();
+
+})();
+</script>
+<!-- ════════ TOOL 2 SCRIPT · PACK-BUILDER ════════ -->
+<script>
+(() => {
+    // ── Config ──
+    const META_TYPE_MAP = {
+        'handling.meta': 'HANDLING_FILE',
+        'vehicles.meta': 'VEHICLE_METADATA_FILE',
+        'carvariations.meta': 'CARCOLS_FILE',
+        'carcols.meta': 'CARCOLS_FILE',
+        'vehiclelayouts.meta': 'VEHICLE_LAYOUTS_FILE',
+        'contentunlocks.meta': 'CONTENT_UNLOCKING_META_FILE',
+    };
+
+    const VARIANT_LETTERS = ['a','b','c','d','e','f','g','h'];
+
+    // ── State ──
+    let currentMode = 'vehicles';
+    let existingZipData = null;
+    let outputZip = null;
+
+    // ── DOM ──
+    const $ = id => document.getElementById(id);
+    const subtitle = $('subtitle');
+    const mergeToggle = $('mergeToggle');
+    const existingDropzone = $('existingDropzone');
+    const existingFileInput = $('existingFileInput');
+    const dropzone = $('pkDropzone');
+    const dropzoneText = $('dropzoneText');
+    const fileInput = $('pkFileInput');
+    const statusEl = $('status');
+    const progressBar = $('progressBar');
+    const resourceList = $('resourceList');
+    const warningsEl = $('warnings');
+    const downloadBtn = $('pkDownloadBtn');
+    const summaryEl = $('summary');
+    const modeTabs = document.querySelectorAll('#tool-pack .mode-tab');
+
+    // ── Mode Switching ──
+    modeTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const mode = tab.dataset.mode;
+            if (mode === currentMode) return;
+            currentMode = mode;
+            modeTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            resetUI();
+            updateModeUI();
+        });
+    });
+
+    function updateModeUI() {
+        if (currentMode === 'vehicles') {
+            subtitle.textContent = 'FiveM Car-Pack Builder';
+            downloadBtn.textContent = 'Car-Pack herunterladen (.zip)';
+        } else {
+            subtitle.textContent = 'FiveM EUP-Pack Builder';
+            downloadBtn.textContent = 'EUP-Pack herunterladen (.zip)';
+        }
+    }
+
+    // ── Merge Toggle ──
+    mergeToggle.addEventListener('change', () => {
+        existingDropzone.classList.toggle('hidden', !mergeToggle.checked);
+        existingZipData = null;
+        existingDropzone.classList.remove('loaded');
+        if (mergeToggle.checked) {
+            dropzoneText.innerHTML = 'Neue Ressourcen-ZIP hier <strong>reinziehen</strong> oder <strong>klicken</strong>';
+        } else {
+            dropzoneText.innerHTML = 'ZIP-Datei hier <strong>reinziehen</strong> oder <strong>klicken</strong>';
+        }
+    });
+
+    // ── Existing Pack Upload ──
+    setupDropzone(existingDropzone, existingFileInput, async (file) => {
+        existingZipData = await JSZip.loadAsync(file);
+        existingDropzone.classList.add('loaded');
+        existingDropzone.querySelector('.dropzone-text').innerHTML = `<strong>${escapeHtml(file.name)}</strong> geladen`;
+    });
+
+    // ── Main Upload ──
+    setupDropzone(dropzone, fileInput, async (file) => {
+        if (currentMode === 'vehicles') {
+            await processVehicleZip(file);
+        } else {
+            await processClothingZip(file);
+        }
+    });
+
+    function setupDropzone(zone, input, handler) {
+        zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+        zone.addEventListener('drop', e => {
+            e.preventDefault();
+            zone.classList.remove('dragover');
+            const f = e.dataTransfer.files[0];
+            if (f && f.name.endsWith('.zip')) handler(f);
+        });
+        input.addEventListener('change', e => {
+            const f = e.target.files[0];
+            if (f) handler(f);
+        });
+    }
+
+    // ── Reset ──
+    function resetUI() {
+        statusEl.classList.remove('visible');
+        downloadBtn.classList.remove('visible');
+        summaryEl.classList.remove('visible');
+        resourceList.innerHTML = '';
+        warningsEl.innerHTML = '';
+        progressBar.style.width = '0%';
+        existingZipData = null;
+        existingDropzone.classList.remove('loaded');
+        existingDropzone.querySelector('.dropzone-text').innerHTML = 'Bestehendes Pack-ZIP hier <strong>reinziehen</strong>';
+        outputZip = null;
+    }
+
+    // ══════════════════════════════════
+    // ── VEHICLES MODE ──
+    // ══════════════════════════════════
+    async function processVehicleZip(file) {
+        statusEl.classList.add('visible');
+        downloadBtn.classList.remove('visible');
+        summaryEl.classList.remove('visible');
+        resourceList.innerHTML = '';
+        warningsEl.innerHTML = '';
+        progressBar.style.width = '10%';
+
+        const zip = await JSZip.loadAsync(file);
+        progressBar.style.width = '30%';
+
+        const vehicles = findResources(zip);
+        progressBar.style.width = '50%';
+
+        if (vehicles.length === 0) {
+            resourceList.innerHTML = '<li class="resource-item"><span class="resource-name" style="color:#e74c3c">Keine Fahrzeuge gefunden (keine fxmanifest.lua)</span></li>';
+            return;
+        }
+
+        const warnings = [];
+        outputZip = new JSZip();
+
+        // Load existing pack if merging
+        if (mergeToggle.checked && existingZipData) {
+            const existingCount = await loadExistingPack(outputZip, existingZipData);
+            addInfo(`Bestehendes Pack geladen (${existingCount} Dateien)`);
+        }
+
+        const allDataFiles = [];
+
+        for (const v of vehicles) {
+            const counts = { stream: 0, data: 0, extras: 0 };
+
+            for (const [relativePath, zipEntry] of Object.entries(v.files)) {
+                if (zipEntry.dir) continue;
+                const lower = relativePath.toLowerCase();
+
+                if (lower.startsWith('stream/') || lower.startsWith('stream\\')) {
+                    const innerPath = relativePath.substring(7);
+                    const flatPath = flattenSubfolder(innerPath);
+                    outputZip.file(`stream/${v.name}/${flatPath}`, zipEntry.async('arraybuffer'));
+                    counts.stream++;
+                } else if (lower.startsWith('data/') || lower.startsWith('data\\')) {
+                    const innerPath = relativePath.substring(5);
+                    const flatPath = flattenSubfolder(innerPath);
+                    outputZip.file(`data/${v.name}/${flatPath}`, zipEntry.async('arraybuffer'));
+                    counts.data++;
+                    allDataFiles.push({ vehicle: v.name, path: `data/${v.name}/${flatPath}`, fileName: flatPath.split('/').pop() });
+                } else if (lower !== 'fxmanifest.lua' && lower !== '__resource.lua') {
+                    outputZip.file(`extras/${v.name}/${relativePath}`, zipEntry.async('arraybuffer'));
+                    counts.extras++;
+                }
+            }
+
+            addResourceItem(v.name, counts);
+        }
+
+        // Collect existing data files for fxmanifest
+        if (mergeToggle.checked && existingZipData) {
+            existingZipData.forEach((path, entry) => {
+                const norm = path.replace(/\\/g, '/');
+                if (norm.startsWith('data/') && !entry.dir) {
+                    const parts = norm.split('/');
+                    allDataFiles.push({ vehicle: parts[1], path: norm, fileName: parts[parts.length - 1] });
+                }
+            });
+        }
+
+        progressBar.style.width = '80%';
+
+        const fxmanifest = generateVehicleFxmanifest(allDataFiles, warnings);
+        outputZip.file('fxmanifest.lua', fxmanifest);
+
+        showWarnings(warnings);
+        progressBar.style.width = '100%';
+        downloadBtn.classList.add('visible');
+        summaryEl.classList.add('visible');
+        summaryEl.textContent = `${vehicles.length} Fahrzeug${vehicles.length > 1 ? 'e' : ''} erkannt`;
+    }
+
+    function generateVehicleFxmanifest(dataFiles, warnings) {
+        let lua = `fx_version 'cerulean'\ngame 'gta5'\n\n`;
+        if (dataFiles.length > 0) {
+            lua += `files {\n`;
+            const seen = new Set();
+            for (const df of dataFiles) {
+                const entry = `    '${df.path}',`;
+                if (!seen.has(entry)) { lua += entry + '\n'; seen.add(entry); }
+            }
+            lua += `}\n\n`;
+
+            for (const df of dataFiles) {
+                const baseName = df.fileName.toLowerCase();
+                const metaType = META_TYPE_MAP[baseName];
+                if (metaType) {
+                    lua += `data_file '${metaType}' '${df.path}'\n`;
+                } else if (baseName.endsWith('.meta')) {
+                    warnings.push(`Unbekannter .meta Typ: ${df.path}`);
+                }
+            }
+        }
+        return lua;
+    }
+
+    // ══════════════════════════════════
+    // ── CLOTHING (EUP) MODE ──
+    // ══════════════════════════════════
+    async function processClothingZip(file) {
+        statusEl.classList.add('visible');
+        downloadBtn.classList.remove('visible');
+        summaryEl.classList.remove('visible');
+        resourceList.innerHTML = '';
+        warningsEl.innerHTML = '';
+        progressBar.style.width = '10%';
+
+        const zip = await JSZip.loadAsync(file);
+        progressBar.style.width = '30%';
+
+        const resources = findResources(zip);
+        progressBar.style.width = '40%';
+
+        if (resources.length === 0) {
+            resourceList.innerHTML = '<li class="resource-item"><span class="resource-name" style="color:#e74c3c">Keine EUP-Ressourcen gefunden</span></li>';
+            return;
+        }
+
+        const warnings = [];
+        outputZip = new JSZip();
+
+        // Build registry of existing files (from existing pack or empty)
+        const fileRegistry = {}; // key: lowercase path in stream → true
+
+        if (mergeToggle.checked && existingZipData) {
+            const existingCount = await loadExistingPack(outputZip, existingZipData);
+            // Register existing stream files
+            existingZipData.forEach((path, entry) => {
+                if (!entry.dir) {
+                    fileRegistry[path.replace(/\\/g, '/').toLowerCase()] = true;
+                }
+            });
+            addInfo(`Bestehendes Pack geladen (${existingCount} Dateien)`);
+        }
+
+        progressBar.style.width = '50%';
+
+        let totalRenamed = 0;
+
+        for (const res of resources) {
+            const counts = { stream: 0, extras: 0, renamed: 0 };
+
+            // Collect all stream files from this resource
+            const streamFiles = [];
+            const otherFiles = [];
+
+            for (const [relativePath, zipEntry] of Object.entries(res.files)) {
+                if (zipEntry.dir) continue;
+                const lower = relativePath.toLowerCase();
+                if (lower.startsWith('stream/') || lower.startsWith('stream\\')) {
+                    streamFiles.push({ relative: relativePath, entry: zipEntry });
+                } else if (lower !== 'fxmanifest.lua' && lower !== '__resource.lua') {
+                    otherFiles.push({ relative: relativePath, entry: zipEntry });
+                }
+            }
+
+            // Process stream files with variant conflict resolution
+            for (const sf of streamFiles) {
+                const innerPath = sf.relative.substring(7); // remove "stream/"
+                let outputPath = `stream/${innerPath}`;
+                const outputLower = outputPath.toLowerCase();
+
+                if (fileRegistry[outputLower]) {
+                    // Conflict! Try to resolve by changing variant letter
+                    const resolved = resolveVariantConflict(outputPath, fileRegistry);
+                    if (resolved) {
+                        outputPath = resolved;
+                        counts.renamed++;
+                        totalRenamed++;
+                    } else {
+                        warnings.push(`Konflikt nicht lösbar: ${innerPath} (übersprungen)`);
+                        continue;
+                    }
+                }
+
+                outputZip.file(outputPath, sf.entry.async('arraybuffer'));
+                fileRegistry[outputPath.toLowerCase()] = true;
+                counts.stream++;
+            }
+
+            // Process other files
+            for (const of2 of otherFiles) {
+                outputZip.file(`extras/${res.name}/${of2.relative}`, of2.entry.async('arraybuffer'));
+                counts.extras++;
+            }
+
+            addResourceItem(res.name, counts);
+        }
+
+        progressBar.style.width = '80%';
+
+        // Generate simple fxmanifest for EUP
+        const fxmanifest = generateClothingFxmanifest();
+        outputZip.file('fxmanifest.lua', fxmanifest);
+
+        if (totalRenamed > 0) {
+            addInfo(`${totalRenamed} Datei${totalRenamed > 1 ? 'en' : ''} umbenannt (Variante hochgezählt)`);
+        }
+
+        showWarnings(warnings);
+        progressBar.style.width = '100%';
+        downloadBtn.classList.add('visible');
+        summaryEl.classList.add('visible');
+        summaryEl.textContent = `${resources.length} Ressource${resources.length > 1 ? 'n' : ''} zusammengeführt`;
+    }
+
+    function resolveVariantConflict(filePath, registry) {
+        // Pattern: something_diff_000_a_something.ytd
+        // Try to change the variant letter (a→b→c→d...)
+        const match = filePath.match(/^(.+_diff_\d+_)([a-h])(_[^/]*\.ytd)$/i);
+        if (!match) {
+            // Also try pattern without _diff_: something_000_a.ytd
+            const match2 = filePath.match(/^(.+_\d+_)([a-h])(\.(?:ytd|ydd))$/i);
+            if (!match2) return null;
+
+            const [, prefix, , suffix] = match2;
+            for (const letter of VARIANT_LETTERS) {
+                const candidate = `${prefix}${letter}${suffix}`;
+                if (!registry[candidate.toLowerCase()]) return candidate;
+            }
+            return null;
+        }
+
+        const [, prefix, , suffix] = match;
+        for (const letter of VARIANT_LETTERS) {
+            const candidate = `${prefix}${letter}${suffix}`;
+            if (!registry[candidate.toLowerCase()]) return candidate;
+        }
+        return null;
+    }
+
+    function generateClothingFxmanifest() {
+        return `fx_version 'cerulean'\ngame 'gta5'\n`;
+    }
+
+    // ══════════════════════════════════
+    // ── SHARED HELPERS ──
+    // ══════════════════════════════════
+    // Flatten: if innerPath has a subfolder (e.g. "kurumac/file.yft"), return just "file.yft"
+    function flattenSubfolder(innerPath) {
+        const parts = innerPath.replace(/\\/g, '/').split('/');
+        // If there's only a filename, keep it. If there's subfolder(s), take only the filename.
+        return parts[parts.length - 1];
+    }
+
+    function findResources(zip) {
+        const resources = [];
+        const manifestPaths = [];
+
+        zip.forEach((path, entry) => {
+            const name = path.replace(/\\/g, '/').toLowerCase();
+            const parts = name.split('/');
+            const last = parts[parts.length - 1];
+            if (last === 'fxmanifest.lua' || last === '__resource.lua') {
+                manifestPaths.push(path.replace(/\\/g, '/'));
+            }
+        });
+
+        for (const manifestPath of manifestPaths) {
+            const parts = manifestPath.split('/');
+            parts.pop();
+            const resDir = parts.join('/');
+            let resName = parts[parts.length - 1] || '';
+
+            const prefix = resDir ? resDir + '/' : '';
+            const files = {};
+
+            zip.forEach((path, entry) => {
+                const normalized = path.replace(/\\/g, '/');
+                if (normalized.startsWith(prefix) && normalized !== manifestPath) {
+                    const relative = normalized.substring(prefix.length);
+                    if (relative) files[relative] = entry;
+                }
+            });
+
+            // If name is empty (fxmanifest at root), try to detect from stream files
+            if (!resName) {
+                for (const relPath of Object.keys(files)) {
+                    const lower = relPath.toLowerCase();
+                    if (lower.startsWith('stream/') || lower.startsWith('stream\\')) {
+                        const fileName = relPath.split('/').pop();
+                        // Use .yft filename as vehicle name (e.g. mustang.yft → mustang)
+                        if (fileName.toLowerCase().endsWith('.yft')) {
+                            resName = fileName.replace(/\.yft$/i, '');
+                            break;
+                        }
+                    }
+                }
+                // Fallback: use first subfolder inside stream/
+                if (!resName) {
+                    for (const relPath of Object.keys(files)) {
+                        const lower = relPath.toLowerCase();
+                        if (lower.startsWith('stream/') || lower.startsWith('stream\\')) {
+                            const inner = relPath.substring(7);
+                            const firstPart = inner.split('/')[0];
+                            if (firstPart && firstPart !== inner) {
+                                resName = firstPart;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (!resName) resName = 'unknown';
+            }
+
+            resources.push({ name: resName, files });
+        }
+
+        return resources;
+    }
+
+    async function loadExistingPack(targetZip, sourceZip) {
+        let count = 0;
+        sourceZip.forEach((path, entry) => {
+            if (!entry.dir) {
+                const norm = path.replace(/\\/g, '/');
+                // Skip old fxmanifest — we generate a new one
+                if (norm.toLowerCase() === 'fxmanifest.lua' || norm.toLowerCase() === '__resource.lua') return;
+                targetZip.file(norm, entry.async('arraybuffer'));
+                count++;
+            }
+        });
+        return count;
+    }
+
+    function addResourceItem(name, counts) {
+        const li = document.createElement('li');
+        li.className = 'resource-item';
+        let statsHtml = '';
+        if (counts.stream !== undefined && counts.stream > 0)
+            statsHtml += `<span><span class="stat-badge stream">stream</span> ${counts.stream}</span>`;
+        if (counts.data !== undefined && counts.data > 0)
+            statsHtml += `<span><span class="stat-badge data">data</span> ${counts.data}</span>`;
+        if (counts.extras !== undefined && counts.extras > 0)
+            statsHtml += `<span><span class="stat-badge extras">extras</span> ${counts.extras}</span>`;
+        if (counts.renamed !== undefined && counts.renamed > 0)
+            statsHtml += `<span><span class="stat-badge renamed">umbenannt</span> ${counts.renamed}</span>`;
+
+        li.innerHTML = `
+            <span class="resource-name">${escapeHtml(name)}</span>
+            <span class="resource-stats">${statsHtml}</span>
+        `;
+        resourceList.appendChild(li);
+    }
+
+    function showWarnings(warnings) {
+        for (const w of warnings) {
+            const div = document.createElement('div');
+            div.className = 'warning-item';
+            div.textContent = w;
+            warningsEl.appendChild(div);
+        }
+    }
+
+    function addInfo(msg) {
+        const div = document.createElement('div');
+        div.className = 'info-item';
+        div.textContent = msg;
+        warningsEl.appendChild(div);
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    // ── Download ──
+    downloadBtn.addEventListener('click', async () => {
+        if (!outputZip) return;
+        downloadBtn.textContent = 'Wird erstellt...';
+        downloadBtn.disabled = true;
+        const blob = await outputZip.generateAsync({ type: 'blob' });
+        const filename = currentMode === 'vehicles' ? 'carpack.zip' : 'eup_pack.zip';
+        saveAs(blob, filename);
+        downloadBtn.textContent = currentMode === 'vehicles' ? 'Car-Pack herunterladen (.zip)' : 'EUP-Pack herunterladen (.zip)';
+        downloadBtn.disabled = false;
+    });
+})();
+</script>
+<!-- ════════ TOOL 3 SCRIPT · LOGO REPLACER ════════ -->
+<script>
+"use strict";
+(() => {
+/* ============================================================================
+   Catania Logo Replacer
+   Reiner Browser-Tool zum Ersetzen einer Logo-Textur in einer GTA V .ytd.
+   Strategie: In-Place-Ersetzung gleicher Größe -> kein Repaging nötig.
+   ========================================================================== */
+
+const ROOT = document.getElementById("tool-logo");
+const $ = s => ROOT.querySelector(s);
+const logEl = $("#log");
+function log(msg, cls){
+  const span = document.createElement("span");
+  if(cls) span.className = cls;
+  span.textContent = msg + "\n";
+  logEl.appendChild(span);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function clearLog(){ logEl.innerHTML = ""; }
+
+/* ---------- D3D / Textur-Formate ---------- */
+const FOURCC = {
+  DXT1: 0x31545844, // 'DXT1'
+  DXT3: 0x33545844, // 'DXT3'
+  DXT5: 0x35545844, // 'DXT5'
+};
+const D3DFMT = {
+  A8R8G8B8: 21,
+  A8B8G8R8: 32,
+  X8R8G8B8: 22,
+};
+const KNOWN_FORMATS = new Set([
+  FOURCC.DXT1, FOURCC.DXT3, FOURCC.DXT5,
+  D3DFMT.A8R8G8B8, D3DFMT.A8B8G8R8, D3DFMT.X8R8G8B8,
+]);
+function fmtName(f){
+  for(const k in FOURCC) if(FOURCC[k]===f) return k;
+  for(const k in D3DFMT) if(D3DFMT[k]===f) return k;
+  return "0x"+(f>>>0).toString(16);
+}
+function bytesPerBlock(f){
+  if(f===FOURCC.DXT1) return 8;          // 4x4 block
+  if(f===FOURCC.DXT3||f===FOURCC.DXT5) return 16;
+  return null; // uncompressed handled separately
+}
+function isCompressed(f){ return f===FOURCC.DXT1||f===FOURCC.DXT3||f===FOURCC.DXT5; }
+function is32bpp(f){ return f===D3DFMT.A8R8G8B8||f===D3DFMT.A8B8G8R8||f===D3DFMT.X8R8G8B8; }
+
+/* Datengröße einer Mip-Kette für (w,h,format,levels) */
+function dataSize(w,h,fmt,levels){
+  let total=0;
+  for(let l=0;l<levels;l++){
+    const lw=Math.max(1,w>>l), lh=Math.max(1,h>>l);
+    if(isCompressed(fmt)){
+      const bx=(lw+3)>>2, by=(lh+3)>>2;
+      total += bx*by*bytesPerBlock(fmt);
+    }else if(is32bpp(fmt)){
+      total += lw*lh*4;
+    }else return null;
+  }
+  return total;
+}
+
+/* ============================================================================
+   RSC7 Resource Container
+   ========================================================================== */
+const RSC7_MAGIC = 0x37435352; // "RSC7" little-endian
+
+function getSizeFromFlags(flags){
+  // CodeWalker-kompatible Größenberechnung der Pages.
+  const s0=((flags>>>27)&0x1)<<0;
+  const s1=((flags>>>26)&0x1)<<1;
+  const s2=((flags>>>25)&0x1)<<2;
+  const s3=((flags>>>24)&0x1)<<3;
+  const s4=((flags>>>17)&0x7F)<<4;
+  const s5=((flags>>>11)&0x3F)<<5;
+  const s6=((flags>>>7)&0xF)<<6;
+  const s7=((flags>>>5)&0x3)<<7;
+  const s8=((flags>>>4)&0x1)<<8;
+  const ss=(flags>>>0)&0xF;
+  const base=0x200 << ss;
+  return base*(s0+s1+s2+s3+s4+s5+s6+s7+s8);
+}
+
+async function inflateRaw(u8){
+  const ds=new DecompressionStream("deflate-raw");
+  const stream=new Blob([u8]).stream().pipeThrough(ds);
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function deflateRaw(u8){
+  const cs=new CompressionStream("deflate-raw");
+  const stream=new Blob([u8]).stream().pipeThrough(cs);
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+/* ---------- Pointer-Auflösung im entpackten Buffer ---------- */
+const SYS_BASE=0x50000000, GFX_BASE=0x60000000, OFF_MASK=0x0FFFFFFF;
+
+class Res {
+  constructor(buf, sysSize, gfxSize, version, sysFlags, gfxFlags){
+    this.buf=buf; this.dv=new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    this.sysSize=sysSize; this.gfxSize=gfxSize;
+    this.version=version; this.sysFlags=sysFlags; this.gfxFlags=gfxFlags;
+  }
+  // wandelt einen Resource-Pointer in einen absoluten Index im entpackten Buffer
+  resolve(ptr){
+    const lo = Number(ptr & 0xFFFFFFFFn);
+    const seg = lo & 0xF0000000;
+    const off = lo & OFF_MASK;
+    if(seg===SYS_BASE) return off;
+    if(seg===GFX_BASE) return this.sysSize + off;
+    return -1;
+  }
+  u8(o){ return this.dv.getUint8(o); }
+  u16(o){ return this.dv.getUint16(o,true); }
+  u32(o){ return this.dv.getUint32(o,true); }
+  u64(o){ return this.dv.getBigUint64(o,true); }
+  cstr(o,max=128){
+    let s=""; for(let i=0;i<max;i++){ const c=this.buf[o+i]; if(!c)break;
+      if(c<32||c>126) return null; s+=String.fromCharCode(c);} return s;
+  }
+}
+
+async function parseYtd(arrayBuf){
+  const all=new Uint8Array(arrayBuf);
+  const dv=new DataView(arrayBuf);
+  const magic=dv.getUint32(0,true);
+  if(magic!==RSC7_MAGIC) throw new Error("Kein RSC7-Header gefunden — ist das wirklich eine .ytd?");
+  const version=dv.getInt32(4,true);
+  const sysFlags=dv.getUint32(8,true);
+  const gfxFlags=dv.getUint32(12,true);
+  const sysSize=getSizeFromFlags(sysFlags);
+  const gfxSize=getSizeFromFlags(gfxFlags);
+  log(`RSC7 v${version} · System ${sysSize} B · Graphics ${gfxSize} B`);
+
+  const payload=all.subarray(16);
+  let dec;
+  try{ dec=await inflateRaw(payload); }
+  catch(e){ throw new Error("Entpacken (deflate) fehlgeschlagen: "+e.message); }
+  log(`Entpackt: ${dec.length} B (erwartet ${sysSize+gfxSize} B)`);
+  if(dec.length < sysSize+gfxSize){
+    // manche Tools paddingen weniger; wir tolerieren, solange Daten passen
+    log("⚠ Entpackte Größe < erwartet — fahre vorsichtig fort.", "warn");
+  }
+  const res=new Res(dec, sysSize, gfxSize, version, sysFlags, gfxFlags);
+  const textures=findTextures(res);
+  if(!textures.length) throw new Error("Keine Texturen gefunden. Bitte sende mir diese .ytd, dann passe ich den Parser an.");
+  return {res, textures};
+}
+
+/* ---------- Textur-Dictionary parsen (selbst-lokalisierend) ---------- */
+function findTextures(res){
+  const out=[];
+  // ResourcePointerList64 der TextureDictionary: Pointer @0x30, Count @0x38
+  let listPtr = res.u64(0x30);
+  let count = res.u16(0x38);
+  let arrOff = res.resolve(listPtr);
+
+  // Plausibilitätsprüfung; falls daneben, scanne System-Segment nach einer
+  // gültigen Pointer-Liste (Array aus 0x5...-Pointern auf Textur-Structs).
+  if(!(count>0 && count<4096 && arrOff>=0)){
+    const found=scanForPointerList(res);
+    if(found){ arrOff=found.arrOff; count=found.count; }
+  }
+  if(arrOff<0 || count<=0 || count>4096) return out;
+
+  for(let i=0;i<count;i++){
+    const texPtr=res.u64(arrOff + i*8);
+    const t=res.resolve(texPtr);
+    if(t<0) continue;
+    const tex=readTexture(res, t);
+    if(tex) out.push(tex);
+  }
+  return out;
+}
+
+// sucht ein Array aufeinanderfolgender System-Pointer, die auf Textur-Structs zeigen
+function scanForPointerList(res){
+  const limit=Math.min(res.sysSize, res.buf.length)-8;
+  for(let o=0;o<limit;o+=8){
+    const p=res.u64(o);
+    const a=res.resolve(p);
+    if(a<0 || (Number(p&0xFFFFFFFFn)&0xF0000000)!==SYS_BASE) continue;
+    // wie viele gültige Textur-Pointer folgen?
+    let n=0;
+    while(o+n*8<limit){
+      const pp=res.u64(o+n*8);
+      const aa=res.resolve(pp);
+      if(aa<0 || (Number(pp&0xFFFFFFFFn)&0xF0000000)!==SYS_BASE) break;
+      if(!readTexture(res, aa)) break;
+      n++;
+      if(n>4096) break;
+    }
+    if(n>0) return {arrOff:o, count:n};
+  }
+  return null;
+}
+
+// liest ein einzelnes Textur-Struct, lokalisiert Felder per FourCC + GFX-Pointer
+function readTexture(res, base){
+  const SCAN=0xA0; // Struct-Fenster
+  if(base+SCAN > res.buf.length) return null;
+
+  // Format-FourCC bzw. 32bpp-Enum im Fenster finden
+  let fmtOff=-1, fmt=0;
+  for(let o=0x10;o<SCAN-4;o+=4){
+    const v=res.u32(base+o);
+    if(KNOWN_FORMATS.has(v)){ fmtOff=o; fmt=v; break; }
+  }
+  if(fmtOff<0) return null;
+
+  // Width/Height: zwei ushorts unmittelbar vor dem Format
+  const width = res.u16(base+fmtOff-8);
+  const height= res.u16(base+fmtOff-6);
+  if(width<1||height<1||width>16384||height>16384) return null;
+
+  // Graphics-Pointer (0x6...) im Fenster finden
+  let dataOff=-1;
+  for(let o=fmtOff;o<SCAN-8;o+=4){
+    const p=res.u64(base+o);
+    const lo=Number(p&0xFFFFFFFFn);
+    if((lo&0xF0000000)===GFX_BASE){
+      const a=res.resolve(p);
+      if(a>=res.sysSize && a<res.buf.length){ dataOff=a; break; }
+    }
+  }
+  if(dataOff<0) return null;
+
+  // Levels (Mip-Anzahl): Byte nahe dem Format; per Größencheck validiert
+  const levelCandidates=[res.u8(base+fmtOff+5), res.u8(base+fmtOff+4), 1];
+  let levels=1, dlen=0;
+  for(const lv of levelCandidates){
+    if(lv<1||lv>14) continue;
+    const sz=dataSize(width,height,fmt,lv);
+    if(sz!=null && dataOff+sz<=res.buf.length){ levels=lv; dlen=sz; break; }
+  }
+  if(dlen===0){
+    const sz=dataSize(width,height,fmt,1);
+    if(sz==null||dataOff+sz>res.buf.length) return null;
+    levels=1; dlen=sz;
+  }
+
+  // Name
+  let name=null;
+  const namePtr=res.u64(base+0x20);
+  const nOff=res.resolve(namePtr);
+  if(nOff>=0) name=res.cstr(nOff);
+  if(!name) name="textur_"+base.toString(16);
+
+  return {base, name, width, height, fmt, levels, dataOff, dataLen:dlen};
+}
+/* ============================================================================
+   DXT Encode / Decode  (eigene, kompakte Implementierung)
+   ========================================================================== */
+function to565(r,g,b){ return ((r>>3)<<11)|((g>>2)<<5)|(b>>3); }
+function from565(v){
+  const r=(v>>11)&0x1F, g=(v>>5)&0x3F, b=v&0x1F;
+  return [(r<<3)|(r>>2),(g<<2)|(g>>4),(b<<3)|(b>>2)];
+}
+
+// --- DECODE: ein DXT-Block -> 16 RGBA Pixel in out (4x4) ---
+function decodeColorBlock(dv,o,out,hasAlpha1bit){
+  const c0=dv.getUint16(o,true), c1=dv.getUint16(o+2,true);
+  const [r0,g0,b0]=from565(c0), [r1,g1,b1]=from565(c1);
+  const pal=[[r0,g0,b0,255],[r1,g1,b1,255],null,null];
+  if(c0>c1 || !hasAlpha1bit){
+    pal[2]=[(2*r0+r1)/3|0,(2*g0+g1)/3|0,(2*b0+b1)/3|0,255];
+    pal[3]=[(r0+2*r1)/3|0,(g0+2*g1)/3|0,(b0+2*b1)/3|0,255];
+  }else{
+    pal[2]=[(r0+r1)/2|0,(g0+g1)/2|0,(b0+b1)/2|0,255];
+    pal[3]=[0,0,0,0];
+  }
+  let bits=dv.getUint32(o+4,true);
+  for(let i=0;i<16;i++){ const c=pal[bits&3]; bits>>>=2;
+    out[i*4]=c[0]; out[i*4+1]=c[1]; out[i*4+2]=c[2]; out[i*4+3]=c[3]; }
+}
+function decodeDXT1Block(dv,o,out){ decodeColorBlock(dv,o,out,true); }
+function decodeDXT5Block(dv,o,out){
+  const a0=dv.getUint8(o), a1=dv.getUint8(o+1);
+  const av=[a0,a1,0,0,0,0,0,0];
+  if(a0>a1){ for(let i=1;i<7;i++) av[i+1]=((7-i)*a0+i*a1)/7|0; }
+  else{ for(let i=1;i<5;i++) av[i+1]=((5-i)*a0+i*a1)/5|0; av[6]=0; av[7]=255; }
+  // 48 bit alpha indices
+  let lo=dv.getUint32(o+2,true), hi=dv.getUint16(o+6,true);
+  let abits=BigInt(lo)|(BigInt(hi)<<32n);
+  decodeColorBlock(dv,o+8,out,false);
+  for(let i=0;i<16;i++){ const idx=Number(abits&7n); abits>>=3n; out[i*4+3]=av[idx]; }
+}
+function decodeDXT3Block(dv,o,out){
+  let alo=dv.getUint32(o,true), ahi=dv.getUint32(o+4,true);
+  let abits=BigInt(alo)|(BigInt(ahi)<<32n);
+  decodeColorBlock(dv,o+8,out,false);
+  for(let i=0;i<16;i++){ const a=Number(abits&0xFn); abits>>=4n; out[i*4+3]=(a<<4)|a; }
+}
+
+// dekodiert eine komprimierte/unkomprimierte Textur (Level 0) -> ImageData-Pixel
+function decodeLevel0(res, tex){
+  const {width:w,height:h,fmt,dataOff}=tex;
+  const rgba=new Uint8ClampedArray(w*h*4);
+  if(is32bpp(fmt)){
+    for(let i=0;i<w*h;i++){
+      const s=dataOff+i*4;
+      if(fmt===D3DFMT.A8B8G8R8){ rgba[i*4]=res.buf[s]; rgba[i*4+1]=res.buf[s+1]; rgba[i*4+2]=res.buf[s+2]; rgba[i*4+3]=res.buf[s+3]; }
+      else { rgba[i*4]=res.buf[s+2]; rgba[i*4+1]=res.buf[s+1]; rgba[i*4+2]=res.buf[s]; rgba[i*4+3]=(fmt===D3DFMT.X8R8G8B8?255:res.buf[s+3]); }
+    }
+    return rgba;
+  }
+  const dv=res.dv, bpb=bytesPerBlock(fmt), bx=(w+3)>>2, by=(h+3)>>2;
+  const blk=new Uint8Array(64);
+  let o=tex.dataOff;
+  for(let yb=0;yb<by;yb++) for(let xb=0;xb<bx;xb++){
+    if(fmt===FOURCC.DXT1) decodeDXT1Block(dv,o,blk);
+    else if(fmt===FOURCC.DXT5) decodeDXT5Block(dv,o,blk);
+    else decodeDXT3Block(dv,o,blk);
+    o+=bpb;
+    for(let py=0;py<4;py++) for(let px=0;px<4;px++){
+      const x=xb*4+px, y=yb*4+py; if(x>=w||y>=h) continue;
+      const di=(y*w+x)*4, si=(py*4+px)*4;
+      rgba[di]=blk[si]; rgba[di+1]=blk[si+1]; rgba[di+2]=blk[si+2]; rgba[di+3]=blk[si+3];
+    }
+  }
+  return rgba;
+}
+
+// --- ENCODE: 16 RGBA Texel -> ein Farb-Block (4-Farb-Modus, Bounding-Box) ---
+function encodeColorBlock(px, outDV, o){
+  let rmin=255,gmin=255,bmin=255,rmax=0,gmax=0,bmax=0;
+  for(let i=0;i<16;i++){ const r=px[i*4],g=px[i*4+1],b=px[i*4+2];
+    if(r<rmin)rmin=r; if(g<gmin)gmin=g; if(b<bmin)bmin=b;
+    if(r>rmax)rmax=r; if(g>gmax)gmax=g; if(b>bmax)bmax=b; }
+  let c0=to565(rmax,gmax,bmax), c1=to565(rmin,gmin,bmin);
+  if(c0<c1){ const t=c0;c0=c1;c1=t; }
+  const [pr0,pg0,pb0]=from565(c0), [pr1,pg1,pb1]=from565(c1);
+  const pal=[[pr0,pg0,pb0],[pr1,pg1,pb1],
+    [(2*pr0+pr1)/3|0,(2*pg0+pg1)/3|0,(2*pb0+pb1)/3|0],
+    [(pr0+2*pr1)/3|0,(pg0+2*pg1)/3|0,(pb0+2*pb1)/3|0]];
+  let bits=0;
+  for(let i=0;i<16;i++){
+    const r=px[i*4],g=px[i*4+1],b=px[i*4+2]; let best=0,bd=1e9;
+    for(let p=0;p<4;p++){ const dr=r-pal[p][0],dg=g-pal[p][1],db=b-pal[p][2];
+      const d=dr*dr+dg*dg+db*db; if(d<bd){bd=d;best=p;} }
+    bits|=best<<(i*2);
+  }
+  outDV.setUint16(o,c0,true); outDV.setUint16(o+2,c1,true); outDV.setUint32(o+4,bits>>>0,true);
+}
+function encodeDXT1Block(px,dv,o){ encodeColorBlock(px,dv,o); }
+function encodeDXT5Block(px,dv,o){
+  let amin=255,amax=0;
+  for(let i=0;i<16;i++){ const a=px[i*4+3]; if(a<amin)amin=a; if(a>amax)amax=a; }
+  const a0=amax,a1=amin;
+  const av=[a0,a1,0,0,0,0,0,0];
+  if(a0>a1){ for(let i=1;i<7;i++) av[i+1]=((7-i)*a0+i*a1)/7|0; }
+  else{ for(let i=1;i<5;i++) av[i+1]=((5-i)*a0+i*a1)/5|0; av[6]=0; av[7]=255; }
+  dv.setUint8(o,a0); dv.setUint8(o+1,a1);
+  let abits=0n;
+  for(let i=0;i<16;i++){ const a=px[i*4+3]; let best=0,bd=1e9;
+    for(let p=0;p<8;p++){ const d=Math.abs(a-av[p]); if(d<bd){bd=d;best=p;} }
+    abits|=BigInt(best)<<BigInt(i*3); }
+  dv.setUint32(o+2,Number(abits&0xFFFFFFFFn),true);
+  dv.setUint16(o+6,Number((abits>>32n)&0xFFFFn),true);
+  encodeColorBlock(px,dv,o+8);
+}
+function encodeDXT3Block(px,dv,o){
+  let abits=0n;
+  for(let i=0;i<16;i++){ abits|=BigInt(px[i*4+3]>>4)<<BigInt(i*4); }
+  dv.setUint32(o,Number(abits&0xFFFFFFFFn),true);
+  dv.setUint32(o+4,Number((abits>>32n)&0xFFFFFFFFn),true);
+  encodeColorBlock(px,dv,o+8);
+}
+
+// holt 16 Texel (mit Edge-Clamping) aus RGBA(w,h) für Block (xb,yb)
+function gatherBlock(rgba,w,h,xb,yb,out){
+  for(let py=0;py<4;py++) for(let px=0;px<4;px++){
+    let x=xb*4+px, y=yb*4+py; if(x>=w)x=w-1; if(y>=h)y=h-1;
+    const si=(y*w+x)*4, di=(py*4+px)*4;
+    out[di]=rgba[si]; out[di+1]=rgba[si+1]; out[di+2]=rgba[si+2]; out[di+3]=rgba[si+3];
+  }
+}
+
+// kodiert RGBA(w,h) komplett in das Zielformat (ein Level)
+function encodeLevel(rgba,w,h,fmt){
+  if(is32bpp(fmt)){
+    const out=new Uint8Array(w*h*4);
+    for(let i=0;i<w*h;i++){
+      if(fmt===D3DFMT.A8B8G8R8){ out[i*4]=rgba[i*4]; out[i*4+1]=rgba[i*4+1]; out[i*4+2]=rgba[i*4+2]; out[i*4+3]=rgba[i*4+3]; }
+      else { out[i*4]=rgba[i*4+2]; out[i*4+1]=rgba[i*4+1]; out[i*4+2]=rgba[i*4]; out[i*4+3]=(fmt===D3DFMT.X8R8G8B8?255:rgba[i*4+3]); }
+    }
+    return out;
+  }
+  const bpb=bytesPerBlock(fmt), bx=(w+3)>>2, by=(h+3)>>2;
+  const out=new Uint8Array(bx*by*bpb), dv=new DataView(out.buffer);
+  const blk=new Uint8Array(64); let o=0;
+  for(let yb=0;yb<by;yb++) for(let xb=0;xb<bx;xb++){
+    gatherBlock(rgba,w,h,xb,yb,blk);
+    if(fmt===FOURCC.DXT1) encodeDXT1Block(blk,dv,o);
+    else if(fmt===FOURCC.DXT5) encodeDXT5Block(blk,dv,o);
+    else encodeDXT3Block(blk,dv,o);
+    o+=bpb;
+  }
+  return out;
+}
+
+/* ---------- Bild -> RGBA bei bestimmter Größe (mit Canvas-Skalierung) ---------- */
+function rgbaAt(imgBitmap,w,h){
+  const c=document.createElement("canvas"); c.width=w; c.height=h;
+  const ctx=c.getContext("2d");
+  ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality="high";
+  ctx.clearRect(0,0,w,h);
+  ctx.drawImage(imgBitmap,0,0,w,h);
+  return new Uint8ClampedArray(ctx.getImageData(0,0,w,h).data);
+}
+
+/* ============================================================================
+   App-State + UI
+   ========================================================================== */
+const state={ ytdName:null, ytdBuf:null, parsed:null, selected:-1, pngBitmap:null, pngName:null };
+
+function setHint(t){ $("#hint").textContent=t||""; }
+function updateButton(){
+  const ready = state.parsed && state.selected>=0 && state.pngBitmap;
+  $("#btnReplace").disabled = !ready;
+  if(state.parsed && state.selected<0) setHint("Wähle eine Textur.");
+  else if(state.parsed && state.selected>=0 && !state.pngBitmap) setHint("Lade noch dein PNG.");
+  else if(ready) setHint("Bereit zum Ersetzen.");
+  else setHint("");
+}
+
+/* ---- Drag & Drop Verkabelung ---- */
+function wireDrop(dropId, accept, onFile){
+  const el=$(dropId);
+  const input=document.createElement("input");
+  input.type="file"; input.accept=accept; input.style.display="none";
+  document.body.appendChild(input);
+  el.addEventListener("click",()=>input.click());
+  input.addEventListener("change",()=>{ if(input.files[0]) onFile(input.files[0]); input.value=""; });
+  ["dragenter","dragover"].forEach(ev=>el.addEventListener(ev,e=>{e.preventDefault();el.classList.add("hot");}));
+  ["dragleave","drop"].forEach(ev=>el.addEventListener(ev,e=>{e.preventDefault();el.classList.remove("hot");}));
+  el.addEventListener("drop",e=>{ const f=e.dataTransfer.files[0]; if(f) onFile(f); });
+}
+
+wireDrop("#dropYtd",".ytd",async file=>{
+  try{
+    clearLog();
+    state.ytdName=file.name; state.selected=-1; state.parsed=null;
+    $("#metaYtd").textContent="Lade & parse …"; $("#metaYtd").className="filemeta";
+    log(`Lese ${file.name} (${file.size} B) …`);
+    const buf=await file.arrayBuffer();
+    state.ytdBuf=buf;
+    const parsed=await parseYtd(buf);
+    state.parsed=parsed;
+    log(`✓ ${parsed.textures.length} Textur(en) gefunden.`,"ok");
+    $("#metaYtd").textContent=`✓ ${file.name} · ${parsed.textures.length} Texturen`;
+    $("#metaYtd").className="filemeta ok";
+    renderTextures();
+    updateButton();
+  }catch(e){
+    log("✗ "+e.message,"err");
+    $("#metaYtd").textContent="✗ "+e.message; $("#metaYtd").className="filemeta";
+    $("#texCard").classList.add("hidden");
+  }
+});
+
+wireDrop("#dropPng","image/png,image/*",async file=>{
+  try{
+    state.pngName=file.name;
+    const bmp=await createImageBitmap(file);
+    state.pngBitmap=bmp;
+    $("#metaPng").textContent=`✓ ${file.name} · ${bmp.width}×${bmp.height}`;
+    $("#metaPng").className="filemeta ok";
+    log(`✓ Logo geladen: ${file.name} (${bmp.width}×${bmp.height})`,"ok");
+    updateButton();
+  }catch(e){
+    $("#metaPng").textContent="✗ Konnte Bild nicht laden";
+    log("✗ Bild-Fehler: "+e.message,"err");
+  }
+});
+
+function renderTextures(){
+  const grid=$("#texgrid"); grid.innerHTML="";
+  $("#texCard").classList.remove("hidden");
+  state.parsed.textures.forEach((tex,i)=>{
+    const div=document.createElement("div"); div.className="tex"; div.dataset.i=i;
+    const wrap=document.createElement("div"); wrap.className="thumbwrap";
+    const cv=document.createElement("canvas");
+    try{
+      const rgba=decodeLevel0(state.parsed.res,tex);
+      cv.width=tex.width; cv.height=tex.height;
+      cv.getContext("2d").putImageData(new ImageData(rgba,tex.width,tex.height),0,0);
+    }catch(e){ cv.width=cv.height=64; }
+    wrap.appendChild(cv);
+    const nm=document.createElement("div"); nm.className="nm"; nm.textContent=tex.name;
+    const meta=document.createElement("div"); meta.className="meta";
+    meta.textContent=`${tex.width}×${tex.height} · ${fmtName(tex.fmt)} · ${tex.levels} mip`;
+    const badge=document.createElement("div"); badge.className="badge"; badge.textContent="✓ GEWÄHLT";
+    div.append(badge,wrap,nm,meta);
+    div.addEventListener("click",()=>{
+      state.selected=i;
+      grid.querySelectorAll(".tex").forEach(x=>x.classList.remove("sel"));
+      div.classList.add("sel"); updateButton();
+    });
+    grid.appendChild(div);
+  });
+}
+
+/* ---- Ersetzen & Download ---- */
+$("#btnReplace").addEventListener("click",async()=>{
+  const {res,textures}=state.parsed; const tex=textures[state.selected];
+  try{
+    $("#btnReplace").disabled=true;
+    log(`\nErsetze "${tex.name}" (${tex.width}×${tex.height}, ${fmtName(tex.fmt)}, ${tex.levels} mip) …`);
+
+    // alle Mip-Level neu kodieren -> ein zusammenhängender Block
+    const parts=[]; let total=0;
+    for(let l=0;l<tex.levels;l++){
+      const lw=Math.max(1,tex.width>>l), lh=Math.max(1,tex.height>>l);
+      const rgba=rgbaAt(state.pngBitmap,lw,lh);
+      const enc=encodeLevel(rgba,lw,lh,tex.fmt);
+      parts.push(enc); total+=enc.length;
+    }
+    log(`Neue Daten: ${total} B · Original-Slot: ${tex.dataLen} B`);
+    if(total!==tex.dataLen){
+      throw new Error(`Größen-Mismatch (${total} ≠ ${tex.dataLen}). Abbruch, um die Datei nicht zu beschädigen.`);
+    }
+
+    // In-Place in das entpackte Segment schreiben
+    const dec=res.buf.slice(); // Kopie
+    let o=tex.dataOff;
+    for(const p of parts){ dec.set(p,o); o+=p.length; }
+
+    // neu komprimieren; Header (inkl. Flags) bleibt unverändert
+    log("Komprimiere neu …");
+    const comp=await deflateRaw(dec);
+    const out=new Uint8Array(16+comp.length);
+    const odv=new DataView(out.buffer);
+    odv.setUint32(0,RSC7_MAGIC,true);
+    odv.setInt32(4,res.version,true);
+    odv.setUint32(8,res.sysFlags,true);
+    odv.setUint32(12,res.gfxFlags,true);
+    out.set(comp,16);
+
+    const outName=state.ytdName.replace(/\.ytd$/i,"")+"_catania.ytd";
+    const blob=new Blob([out],{type:"application/octet-stream"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a"); a.href=url; a.download=outName; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+    log(`✓ Fertig: ${outName} (${out.length} B) heruntergeladen.`,"ok");
+    log("Tipp: In FiveM/GTA testen. Wenn die Textur verzerrt ist, sag Bescheid — dann verfeinere ich den Encoder.","warn");
+  }catch(e){
+    log("✗ "+e.message,"err");
+  }finally{
+    updateButton();
+  }
+});
+
+$("#btnReset").addEventListener("click",()=>{
+  Object.assign(state,{ytdName:null,ytdBuf:null,parsed:null,selected:-1,pngBitmap:null,pngName:null});
+  $("#metaYtd").textContent="Keine Datei geladen."; $("#metaYtd").className="filemeta";
+  $("#metaPng").textContent="Kein Logo geladen."; $("#metaPng").className="filemeta";
+  $("#texgrid").innerHTML=""; $("#texCard").classList.add("hidden");
+  clearLog(); log("Zurückgesetzt."); updateButton();
+});
+
+/* Feature-Check */
+if(typeof DecompressionStream==="undefined"||typeof CompressionStream==="undefined"){
+  log("✗ Dein Browser unterstützt CompressionStream nicht. Bitte aktuelles Chrome/Edge/Firefox nutzen.","err");
+}
+updateButton();
+
+})();
+</script>
+<!-- ════════ TOOL 4 SCRIPT · RESOURCE MERGER ════════ -->
+<script>
+"use strict";
+(() => {
+
+// ============================================================
+//  State
+// ============================================================
+let RESOURCES = [];   // [{ name, root, manifestPath, files:[{path,relpath,obj}], parsed, enabled, badges }]
+let RAW_ZIP = null;
+
+const $ = id => document.getElementById(id);
+
+// ============================================================
+//  Lua manifest parsing
+// ============================================================
+function stripLuaComments(src) {
+  // remove block comments --[[ ... ]] and --[==[ ... ]==]
+  src = src.replace(/--\[(=*)\[[\s\S]*?\]\1\]/g, "");
+  // remove line comments
+  src = src.replace(/--[^\n]*/g, "");
+  return src;
+}
+
+// Extract all string values associated with a keyword.
+// Handles:  keyword 'x'   keyword "x"   keyword { 'a', 'b' }   keyword({...})
+function extractEntries(src, keyword) {
+  const results = [];
+  const re = new RegExp("(?:^|[\\s;{(,])" + keyword + "\\b", "g");
+  let m;
+  while ((m = re.exec(src)) !== null) {
+    let i = re.lastIndex;
+    // skip whitespace and optional '('
+    while (i < src.length && /\s/.test(src[i])) i++;
+    if (src[i] === "(") i++;
+    while (i < src.length && /\s/.test(src[i])) i++;
+
+    if (src[i] === "{") {
+      // table: scan to matching brace
+      let depth = 0, j = i, body = "";
+      for (; j < src.length; j++) {
+        const ch = src[j];
+        if (ch === "{") depth++;
+        else if (ch === "}") { depth--; if (depth === 0) { j++; break; } }
+        if (depth >= 1 && !(depth === 1 && ch === "{")) body += ch;
+      }
+      const strs = body.match(/['"]([^'"]*)['"]/g) || [];
+      strs.forEach(s => results.push(s.slice(1, -1)));
+    } else if (src[i] === "'" || src[i] === '"') {
+      const quote = src[i];
+      let j = i + 1, val = "";
+      while (j < src.length && src[j] !== quote) { val += src[j]; j++; }
+      results.push(val);
+    }
+  }
+  return results;
+}
+
+function parseManifest(content) {
+  const src = stripLuaComments(content);
+  const first = (arr) => arr.length ? arr[0] : null;
+
+  const fxv     = first(extractEntries(src, "fx_version"));
+  const game    = first(extractEntries(src, "game")) || first(extractEntries(src, "games"));
+  const name    = first(extractEntries(src, "name"));
+  const lua54   = /\blua54\s*['"(]?\s*['"]?(yes|true|on)/i.test(src) || /\blua54\s+['"](yes|true|on)['"]/i.test(src);
+
+  return {
+    fx_version: fxv,
+    game: game,
+    name: name,
+    lua54: lua54,
+    shared_scripts: [].concat(extractEntries(src, "shared_scripts"), extractEntries(src, "shared_script")),
+    client_scripts: [].concat(extractEntries(src, "client_scripts"), extractEntries(src, "client_script")),
+    server_scripts: [].concat(extractEntries(src, "server_scripts"), extractEntries(src, "server_script")),
+    files:          extractEntries(src, "files"),
+    ui_page:        first(extractEntries(src, "ui_page")),
+    dependencies:   [].concat(extractEntries(src, "dependencies"), extractEntries(src, "dependency")),
+    exports:        extractEntries(src, "exports"),
+    server_exports: extractEntries(src, "server_exports"),
+  };
+}
+
+// ============================================================
+//  Glob expansion against a resource's actual file list
+// ============================================================
+function globToRegex(glob) {
+  let re = "";
+  for (let i = 0; i < glob.length; i++) {
+    const c = glob[i];
+    if (c === "*") {
+      if (glob[i + 1] === "*") { re += ".*"; i++; }
+      else re += "[^/]*";
+    } else if (c === "?") re += "[^/]";
+    else if ("\\^$+.()|[]{}".includes(c)) re += "\\" + c;
+    else re += c;
+  }
+  return new RegExp("^" + re + "$");
+}
+
+function expandPattern(pattern, relpaths) {
+  if (pattern.startsWith("@")) return [pattern];        // external ref -> keep verbatim
+  if (!/[*?]/.test(pattern)) return [pattern];          // literal path
+  const rx = globToRegex(pattern);
+  const hits = relpaths.filter(p => rx.test(p));
+  return hits.length ? hits : [];                       // unmatched glob -> drop silently
+}
+
+// ============================================================
+//  ZIP loading
+// ============================================================
+async function handleZip(file) {
+  resetUI(false);
+  showProcessing();
+  try {
+    const zip = await JSZip.loadAsync(file);
+    RAW_ZIP = zip;
+
+    // Find every manifest
+    const manifestPaths = [];
+    zip.forEach((relPath, entry) => {
+      if (entry.dir) return;
+      const base = relPath.split("/").pop().toLowerCase();
+      if (base === "fxmanifest.lua" || base === "__resource.lua") manifestPaths.push(relPath);
+    });
+
+    if (manifestPaths.length === 0) {
+      alert("Keine fxmanifest.lua / __resource.lua im ZIP gefunden.");
+      resetUI(true);
+      return;
+    }
+
+    RESOURCES = [];
+    for (const mp of manifestPaths) {
+      const root = mp.includes("/") ? mp.slice(0, mp.lastIndexOf("/") + 1) : "";
+      const content = await zip.file(mp).async("string");
+      const parsed = parseManifest(content);
+
+      // collect all files belonging to this resource (under root, excluding nested resources)
+      const files = [];
+      const relpaths = [];
+      zip.forEach((relPath, entry) => {
+        if (entry.dir) return;
+        if (root === "" ? true : relPath.startsWith(root)) {
+          const rel = root === "" ? relPath : relPath.slice(root.length);
+          if (rel === "" || rel.includes("fxmanifest.lua") && rel === "fxmanifest.lua") {
+            // include manifest too in file list but we won't copy it
+          }
+          files.push({ fullPath: relPath, relpath: rel, obj: entry });
+          relpaths.push(rel);
+        }
+      });
+
+      const folderName = root === "" ? (parsed.name || file.name.replace(/\.zip$/i, "")) : root.replace(/\/$/, "").split("/").pop();
+      const resName = parsed.name || folderName;
+
+      RESOURCES.push({
+        name: resName,
+        folderName: folderName,
+        root: root,
+        manifestPath: mp,
+        legacy: mp.toLowerCase().endsWith("__resource.lua"),
+        files, relpaths, parsed,
+        enabled: true,
+      });
+    }
+
+    // de-overlap: a resource root inside another resource root → keep the deepest only
+    // (a nested resource's files should not also count for the parent)
+    for (const r of RESOURCES) {
+      const childRoots = RESOURCES.filter(o => o !== r && o.root.startsWith(r.root) && o.root.length > r.root.length).map(o => o.root);
+      if (childRoots.length) {
+        r.files = r.files.filter(f => !childRoots.some(cr => f.fullPath.startsWith(cr)));
+        r.relpaths = r.files.map(f => f.relpath);
+      }
+    }
+
+    renderAll();
+  } catch (e) {
+    console.error(e);
+    alert("Fehler beim Lesen des ZIP: " + e.message);
+    resetUI(true);
+  }
+}
+
+// ============================================================
+//  Rendering
+// ============================================================
+function showProcessing() {
+  $("rmDropzone").querySelector("h3").textContent = "Verarbeite ZIP…";
+}
+
+function renderAll() {
+  $("rmDropzone").querySelector("h3").textContent = "ZIP hier ablegen";
+  renderResources();
+  renderWarnings();
+  renderPreview();
+
+  ["resSection","warnSection","optSection","previewSection","actionSection"].forEach(s => $(s).classList.remove("hidden"));
+}
+
+function renderResources() {
+  const grid = $("resGrid");
+  grid.innerHTML = "";
+  $("resCount").textContent = RESOURCES.length + (RESOURCES.length === 1 ? " Ressource" : " Ressourcen");
+
+  RESOURCES.forEach((r, idx) => {
+    const p = r.parsed;
+    const card = document.createElement("div");
+    card.className = "res-card" + (r.enabled ? "" : " off");
+
+    const fileCount = r.files.filter(f => f.relpath.toLowerCase() !== "fxmanifest.lua" && f.relpath.toLowerCase() !== "__resource.lua").length;
+
+    card.innerHTML = `
+      <div class="chk"><input type="checkbox" ${r.enabled ? "checked" : ""} data-idx="${idx}"></div>
+      <div class="body">
+        <div class="rname">${escapeHtml(r.name)} ${r.legacy ? '<span class="badge legacy">legacy</span>' : ""}</div>
+        <div class="path">${escapeHtml(r.root || "(ZIP-Wurzel)")}</div>
+        <div class="pills">
+          <span class="pill sh">shared: ${p.shared_scripts.length}</span>
+          <span class="pill c">client: ${p.client_scripts.length}</span>
+          <span class="pill s">server: ${p.server_scripts.length}</span>
+          ${p.files.length ? `<span class="pill f">files: ${p.files.length}</span>` : ""}
+          ${p.ui_page ? `<span class="pill f">ui_page</span>` : ""}
+          ${p.dependencies.length ? `<span class="pill f">deps: ${p.dependencies.length}</span>` : ""}
+          <span class="pill f">${fileCount} Dateien</span>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  grid.querySelectorAll("input[type=checkbox]").forEach(cb => {
+    cb.addEventListener("change", e => {
+      RESOURCES[+e.target.dataset.idx].enabled = e.target.checked;
+      renderResources(); renderWarnings(); renderPreview();
+    });
+  });
+}
+
+function activeResources() { return RESOURCES.filter(r => r.enabled); }
+
+function renderWarnings() {
+  const list = $("warnList");
+  list.innerHTML = "";
+  const warnings = computeWarnings();
+  $("warnCount").textContent = warnings.length;
+
+  if (warnings.length === 0) {
+    list.innerHTML = `<div class="warn info"><span class="wi">✓</span><div>Keine Konflikte erkannt. Die Ressourcen lassen sich sauber zusammenführen.</div></div>`;
+    return;
+  }
+  warnings.forEach(w => {
+    const el = document.createElement("div");
+    el.className = "warn " + w.level; // err | warn2 | info
+    el.innerHTML = `<span class="wi">${w.icon}</span><div>${w.html}</div>`;
+    list.appendChild(el);
+  });
+}
+
+function computeWarnings() {
+  const out = [];
+  const act = activeResources();
+
+  if (act.length < 2) {
+    out.push({ level: "warn2", icon: "⚠", html: "<b>Weniger als 2 Ressourcen aktiv.</b> Zum Zusammenführen mindestens 2 Ressourcen auswählen." });
+  }
+
+  // duplicate resource / folder names
+  const nameMap = {};
+  act.forEach(r => { const k = sanitizeFolder(r.folderName); (nameMap[k] = nameMap[k] || []).push(r); });
+  Object.entries(nameMap).forEach(([k, arr]) => {
+    if (arr.length > 1)
+      out.push({ level: "err", icon: "✕", html: `<b>Doppelter Ressourcen-Name</b> <code>${escapeHtml(k)}</code> (${arr.length}×). Die Ordner werden automatisch durchnummeriert, prüfe aber Exports/Globals.` });
+  });
+
+  // multiple ui_page
+  const uiRes = act.filter(r => r.parsed.ui_page);
+  if (uiRes.length > 1) {
+    out.push({ level: "err", icon: "✕", html: `<b>Mehrere <code>ui_page</code>:</b> ${uiRes.map(r => escapeHtml(r.name)).join(", ")}. FiveM erlaubt nur <b>eine</b> NUI-Page pro Ressource — diese Ressourcen sollten nicht zusammengeführt werden, sonst funktioniert nur eine NUI.` });
+  } else if (uiRes.length === 1) {
+    out.push({ level: "info", icon: "ℹ", html: `<code>ui_page</code> von <b>${escapeHtml(uiRes[0].name)}</b> wird übernommen.` });
+  }
+
+  // duplicate filenames across resources (potential global/export clashes)
+  const fileBase = {};
+  act.forEach(r => {
+    r.relpaths.forEach(rel => {
+      const base = rel.toLowerCase();
+      if (base.endsWith("fxmanifest.lua") || base.endsWith("__resource.lua")) return;
+      const nm = rel.split("/").pop().toLowerCase();
+      if (!nm.endsWith(".lua")) return;
+      (fileBase[nm] = fileBase[nm] || new Set()).add(r.name);
+    });
+  });
+  const dupFiles = Object.entries(fileBase).filter(([,s]) => s.size > 1);
+  if (dupFiles.length) {
+    const show = dupFiles.slice(0, 6).map(([f,s]) => `<code>${escapeHtml(f)}</code>`).join(", ");
+    out.push({ level: "warn2", icon: "⚠", html: `<b>Gleiche Lua-Dateinamen</b> in mehreren Ressourcen: ${show}${dupFiles.length>6?` …(+${dupFiles.length-6})`:""}. Durch getrennte Unterordner kein Pfadkonflikt — aber achte auf doppelte globale Funktionen/Events.` });
+  }
+
+  // export name collisions
+  const exp = {};
+  act.forEach(r => r.parsed.exports.concat(r.parsed.server_exports).forEach(e => { (exp[e]=exp[e]||new Set()).add(r.name); }));
+  const dupExp = Object.entries(exp).filter(([,s]) => s.size > 1);
+  if (dupExp.length) {
+    out.push({ level: "err", icon: "✕", html: `<b>Export-Konflikt:</b> ${dupExp.map(([e])=>`<code>${escapeHtml(e)}</code>`).join(", ")} in mehreren Ressourcen. In einer kombinierten Ressource überschreiben sich gleichnamige Exports!` });
+  }
+
+  // mixed games
+  const games = new Set(act.map(r => (r.parsed.game||"").toLowerCase()).filter(Boolean));
+  if (games.size > 1) {
+    out.push({ level: "warn2", icon: "⚠", html: `<b>Unterschiedliche <code>game</code>-Targets:</b> ${[...games].join(", ")}. Verwende <code>game 'common'</code> nur wenn beabsichtigt.` });
+  }
+
+  // external @ references → informational
+  const extRefs = new Set();
+  act.forEach(r => {
+    [...r.parsed.shared_scripts, ...r.parsed.client_scripts, ...r.parsed.server_scripts]
+      .filter(s => s.startsWith("@")).forEach(s => extRefs.add(s.split("/")[0]));
+  });
+  if (extRefs.size) {
+    out.push({ level: "info", icon: "ℹ", html: `Externe Referenzen werden beibehalten: ${[...extRefs].map(e=>`<code>${escapeHtml(e)}</code>`).join(", ")}. Diese Ressourcen müssen weiterhin separat laufen.` });
+  }
+
+  return out;
+}
+// ============================================================
+//  Build merged manifest + file plan
+// ============================================================
+function sanitizeFolder(n) { return (n || "res").replace(/[^a-zA-Z0-9_\-]/g, "_"); }
+
+function buildPlan() {
+  const act = activeResources();
+  const usedFolders = {};
+  const shared = [], client = [], server = [], files = [], deps = new Set();
+  let ui_page = null;
+  const mergedResourceNames = new Set(act.map(r => r.name).concat(act.map(r => r.folderName)));
+
+  // copy plan: [{from: entryObj, to: pathInsideResource}]
+  const copies = [];
+
+  act.forEach(r => {
+    let folder = sanitizeFolder(r.folderName);
+    if (usedFolders[folder] !== undefined) { usedFolders[folder]++; folder = folder + "_" + usedFolders[folder]; }
+    else usedFolders[folder] = 0;
+    r._folder = folder;
+
+    const p = r.parsed;
+
+    const addScripts = (patterns, bucket) => {
+      patterns.forEach(pat => {
+        if (pat.startsWith("@")) { if (!bucket.includes(pat)) bucket.push(pat); return; }
+        expandPattern(pat, r.relpaths).forEach(rel => {
+          const out = folder + "/" + rel;
+          if (!bucket.includes(out)) bucket.push(out);
+        });
+      });
+    };
+    addScripts(p.shared_scripts, shared);
+    addScripts(p.client_scripts, client);
+    addScripts(p.server_scripts, server);
+    addScripts(p.files, files);
+
+    if (p.ui_page && !ui_page) {
+      ui_page = p.ui_page.startsWith("@") ? p.ui_page : folder + "/" + p.ui_page;
+    }
+
+    // dependencies, excluding the merged resources themselves
+    p.dependencies.forEach(d => { if (!mergedResourceNames.has(d)) deps.add(d); });
+
+    // copy ALL files of the resource (except its manifest) into the subfolder
+    r.files.forEach(f => {
+      const low = f.relpath.toLowerCase();
+      if (low === "fxmanifest.lua" || low === "__resource.lua") return;
+      copies.push({ obj: f.obj, to: folder + "/" + f.relpath });
+    });
+  });
+
+  return { shared, client, server, files, deps: [...deps], ui_page, copies, act };
+}
+
+function generateManifest(plan) {
+  const lua54 = $("optLua54").checked;
+  const keepDeps = $("optKeepDeps").checked;
+  const name = sanitizeFolder($("outName").value.trim() || "catania_combined");
+  const author = $("outAuthor").value.trim() || "Catania Resource Merger";
+
+  // pick fx_version: prefer a known-latest among resources, else cerulean
+  const order = ["adamant","bodacious","cerulean"];
+  let fxv = "cerulean";
+  plan.act.forEach(r => { const v = (r.parsed.fx_version||"").toLowerCase(); if (order.includes(v) && order.indexOf(v) > order.indexOf(fxv)) fxv = v; });
+
+  // game
+  const games = new Set(plan.act.map(r => (r.parsed.game||"").toLowerCase()).filter(Boolean));
+  const game = games.size === 1 ? [...games][0] : "gta5";
+
+  const tbl = (arr) => arr.length ? "{\n" + arr.map(s => `    '${s}',`).join("\n") + "\n}" : null;
+
+  let L = [];
+  L.push(`fx_version '${fxv}'`);
+  L.push(`game '${game}'`);
+  if (lua54) L.push(`lua54 'yes'`);
+  L.push("");
+  L.push(`name '${name}'`);
+  L.push(`author '${author}'`);
+  L.push(`description 'Merged with Catania Resource Merger from: ${plan.act.map(r=>r.name).join(", ")}'`);
+  L.push(`version '1.0.0'`);
+  L.push("");
+
+  if (keepDeps && plan.deps.length) {
+    L.push(`dependencies ${tbl(plan.deps)}`);
+    L.push("");
+  }
+
+  if (plan.shared.length) { L.push(`shared_scripts ${tbl(plan.shared)}`); L.push(""); }
+  if (plan.client.length) { L.push(`client_scripts ${tbl(plan.client)}`); L.push(""); }
+  if (plan.server.length) { L.push(`server_scripts ${tbl(plan.server)}`); L.push(""); }
+
+  if (plan.ui_page) { L.push(`ui_page '${plan.ui_page}'`); }
+  if (plan.files.length) { L.push(`files ${tbl(plan.files)}`); }
+
+  return L.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+}
+
+function renderPreview() {
+  const plan = buildPlan();
+  const manifest = generateManifest(plan);
+  $("manifestPre").innerHTML = highlightLua(manifest);
+  $("manifestPre").dataset.raw = manifest;
+}
+
+// ============================================================
+//  Download
+// ============================================================
+async function doDownload() {
+  const btn = $("rmDownloadBtn");
+  const act = activeResources();
+  if (act.length < 1) { alert("Keine Ressource ausgewählt."); return; }
+
+  btn.disabled = true;
+  const oldHtml = btn.innerHTML;
+  btn.innerHTML = '<span class="spin"></span> Erzeuge ZIP…';
+
+  try {
+    const plan = buildPlan();
+    const manifest = generateManifest(plan);
+    const outName = sanitizeFolder($("outName").value.trim() || "catania_combined");
+
+    const out = new JSZip();
+    const rootFolder = out.folder(outName);
+    rootFolder.file("fxmanifest.lua", manifest);
+
+    for (const c of plan.copies) {
+      const data = await c.obj.async("uint8array");
+      rootFolder.file(c.to, data);
+    }
+
+    const blob = await out.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = outName + ".zip";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  } catch (e) {
+    console.error(e);
+    alert("Fehler beim Erzeugen des ZIP: " + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = oldHtml;
+  }
+}
+
+// ============================================================
+//  Helpers
+// ============================================================
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function highlightLua(src) {
+  // escape first
+  let s = escapeHtml(src);
+  // strings
+  s = s.replace(/'([^']*)'/g, "<span class='ls'>'$1'</span>");
+  // keywords at line start
+  s = s.replace(/^(\s*)(fx_version|game|games|lua54|name|author|description|version|dependencies|dependency|shared_scripts|shared_script|client_scripts|client_script|server_scripts|server_script|ui_page|files|exports|server_exports)\b/gm,
+    "$1<span class='lk'>$2</span>");
+  return s;
+}
+
+function resetUI(showDrop) {
+  RESOURCES = []; RAW_ZIP = null;
+  ["resSection","warnSection","optSection","previewSection","actionSection"].forEach(s => $(s).classList.add("hidden"));
+  $("rmDropzone").querySelector("h3").textContent = "ZIP hier ablegen";
+}
+
+// ============================================================
+//  Events
+// ============================================================
+const dz = $("rmDropzone");
+const fi = $("rmFileInput");
+
+dz.addEventListener("click", () => fi.click());
+fi.addEventListener("change", e => { if (e.target.files[0]) handleZip(e.target.files[0]); fi.value=""; });
+
+["dragenter","dragover"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add("drag"); }));
+["dragleave","drop"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove("drag"); }));
+dz.addEventListener("drop", e => {
+  const f = [...e.dataTransfer.files].find(x => x.name.toLowerCase().endsWith(".zip"));
+  if (f) handleZip(f); else alert("Bitte eine .zip-Datei ablegen.");
+});
+
+$("rmDownloadBtn").addEventListener("click", doDownload);
+$("rmResetBtn").addEventListener("click", () => resetUI(true));
+
+["outName","outAuthor"].forEach(id => $(id).addEventListener("input", renderPreview));
+["optLua54","optKeepDeps"].forEach(id => $(id).addEventListener("change", renderPreview));
+
+$("copyBtn").addEventListener("click", () => {
+  const raw = $("manifestPre").dataset.raw || "";
+  navigator.clipboard.writeText(raw).then(() => {
+    const b = $("copyBtn"); const t = b.textContent; b.textContent = "✓ Kopiert"; setTimeout(()=>b.textContent=t, 1500);
+  });
+});
+
+})();
+</script>
+</body>
+</html>
